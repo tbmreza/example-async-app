@@ -1,0 +1,18 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <title>Simplest HTML itw</title>
+</head>
+
+<body>
+  <h1>The</h1>
+
+
+<script>
+  console.log('ssimple')
+  console.log({
+    'aa': 12
+  })
+</script>
+
+
+</body></html>

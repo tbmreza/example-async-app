@@ -1,13 +1,11 @@
+use myrepl::browse::*;
+#[allow(unused_imports)]
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use thirtyfour::prelude::*;
 use tokio;
 
-fn goto(line: &str) {
-    println!("Process this: {}", line);
-}
-
-fn core_loop() {
+fn core_loop() -> color_eyre::Result<()> {
     let mut rl = Editor::<()>::new();
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
@@ -20,12 +18,46 @@ fn core_loop() {
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
                 if let Some(first) = splitted.first() {
                     match *first {
-                        "34" => {}
-                        "goto" => {
-                            if splitted.len() != 2 {
-                                println!("Wrong number of arguments: {}", line);
+                        "34" => {
+                            let rt = tokio::runtime::Builder::new_current_thread()
+                                .enable_all()
+                                .build()?;
+                            rt.block_on(run());
+                        }
+                        "page" => {
+                            match splitted.len() {
+                                1 => {
+                                    // read page.txt
+                                    let rt = tokio::runtime::Builder::new_current_thread()
+                                        .enable_all()
+                                        .build()?;
+                                    rt.block_on(print_page());
+                                }
+                                2 => {
+                                    // reload and then read page.txt
+                                    if let Some(subcommand) = splitted.get(1) {
+                                        println!("cmd: page, subcmd: {}", subcommand);
+                                    }
+                                }
+                                _ => println!("Did you mean: `page refresh`?"),
+                            }
+                        }
+                        "console" => {
+                            if splitted.len() == 1 {
+                                // read console.txt
+                                println!("reading...");
                             } else {
-                                goto(&line);
+                                println!("`console` prints browser's console and doesn't take any arguments");
+                            }
+                        }
+                        "goto" => {
+                            if let Some(url) = splitted.get(1) {
+                                let rt = tokio::runtime::Builder::new_current_thread()
+                                    .enable_all()
+                                    .build()?;
+                                rt.block_on(goto(url));
+                            } else {
+                                println!("Wrong number of arguments: {}", line);
                             }
                         }
                         _ => println!("Unrecognized: {}", line),
@@ -47,8 +79,12 @@ fn core_loop() {
         }
     }
     rl.save_history("history.txt").unwrap();
+    Ok(())
 }
 
-fn main() {
-    core_loop();
+fn main() -> color_eyre::Result<()> {
+    // spawn driver in other thread here?
+    // another thread to tell it to goto where
+
+    core_loop()
 }
