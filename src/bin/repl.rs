@@ -24,6 +24,23 @@ fn core_loop() -> color_eyre::Result<()> {
                                 .build()?;
                             rt.block_on(run());
                         }
+                        "urlbar" => {
+                            match splitted.len() {
+                                1 => {
+                                    println!("The urlbar reads: ...");
+                                }
+                                _ => {
+                                    // sets url to shared state
+                                    if splitted.len() > 2 {
+                                        println!("Usage: `urlbar [URL]`");
+                                    } else {
+                                        if let Some(url) = splitted.get(1) {
+                                            println!("set the urlbar");
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         "page" => {
                             match splitted.len() {
                                 1 => {
@@ -35,8 +52,10 @@ fn core_loop() -> color_eyre::Result<()> {
                                 }
                                 2 => {
                                     // reload and then read page.txt
-                                    if let Some(subcommand) = splitted.get(1) {
-                                        println!("cmd: page, subcmd: {}", subcommand);
+                                    if let Some(&"refresh") = splitted.get(1) {
+                                        println!("goto set url, print content of page.txt");
+                                    } else {
+                                        println!("subcommand not recognized");
                                     }
                                 }
                                 _ => println!("Did you mean: `page refresh`?"),
