@@ -2,14 +2,20 @@ use myrepl::browse::*;
 #[allow(unused_imports)]
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
 use tokio;
+
+type Urlbar = Arc<Mutex<String>>;
 
 fn core_loop() -> color_eyre::Result<()> {
     let mut rl = Editor::<()>::new();
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
+
+    let urlbar = Arc::new(Mutex::new(String::new()));
+
     loop {
         let readline = rl.readline(">> ");
         match readline {
@@ -27,7 +33,8 @@ fn core_loop() -> color_eyre::Result<()> {
                         "urlbar" => {
                             match splitted.len() {
                                 1 => {
-                                    println!("The urlbar reads: ...");
+                                    let url = urlbar.lock().unwrap();
+                                    println!("The urlbar reads: {:?}", &url);
                                 }
                                 _ => {
                                     // sets url to shared state
@@ -35,7 +42,9 @@ fn core_loop() -> color_eyre::Result<()> {
                                         println!("Usage: `urlbar [URL]`");
                                     } else {
                                         if let Some(url) = splitted.get(1) {
-                                            println!("set the urlbar");
+                                            let mut bar = urlbar.lock().unwrap();
+                                            *bar = url.to_string();
+                                            // println!("set the urlbar");
                                         }
                                     }
                                 }
