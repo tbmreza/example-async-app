@@ -6,8 +6,6 @@ use std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
 use tokio;
 
-type Urlbar = Arc<Mutex<String>>;
-
 fn core_loop() -> color_eyre::Result<()> {
     let mut rl = Editor::<()>::new();
     if rl.load_history("history.txt").is_err() {
@@ -79,11 +77,12 @@ fn core_loop() -> color_eyre::Result<()> {
                             }
                         }
                         "goto" => {
+                            // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
                             if let Some(url) = splitted.get(1) {
                                 let rt = tokio::runtime::Builder::new_current_thread()
                                     .enable_all()
                                     .build()?;
-                                rt.block_on(goto(url));
+                                rt.block_on(goto(urlbar.clone(), url));
                             } else {
                                 println!("Wrong number of arguments: {}", line);
                             }

@@ -1,10 +1,13 @@
 use eyre::eyre;
+use std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
 use tokio;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::time::{sleep, Duration};
+
+pub type Urlbar = Arc<Mutex<String>>;
 
 pub async fn run() -> color_eyre::Result<()> {
     // NOTE could not set the provided `Theme` via `color_spantrace::set_theme` globally as another was already set: InstallThemeError
@@ -63,13 +66,16 @@ pub async fn localhost() -> color_eyre::Result<()> {
     }
 }
 
-pub async fn goto(url: &str) -> color_eyre::Result<()> {
+pub async fn goto(urlbar: Urlbar, url: &str) -> color_eyre::Result<()> {
     let mut caps = DesiredCapabilities::firefox();
     caps.add_firefox_arg("--headless")?;
 
     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
 
     // instantiate driver in separate async function?
+
+    let mut bar = urlbar.lock().unwrap();
+    *bar = url.to_string();
 
     driver.get(url).await?;
     let source = driver.page_source().await?;
