@@ -76,6 +76,16 @@ fn core_loop() -> color_eyre::Result<()> {
                                 println!("`console` prints browser's console and doesn't take any arguments");
                             }
                         }
+                        "log" => {
+                            if let Some(url) = splitted.get(1) {
+                                let rt = tokio::runtime::Builder::new_current_thread()
+                                    .enable_all()
+                                    .build()?;
+                                rt.block_on(log_commands(url));
+                            } else {
+                                println!("Wrong number of arguments: {}", line);
+                            }
+                        }
                         "goto" => {
                             // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
                             if let Some(url) = splitted.get(1) {

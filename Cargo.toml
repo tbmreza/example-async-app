@@ -10,5 +10,7 @@ edition = "2018"
 color-eyre = "0.6.0"
 eyre = "0.6.6"
 rustyline = "9.1.0"
-thirtyfour = "0.28.1"
+# thirtyfour = "0.28.1"
+# thirtyfour = { git = "https://github.com/tbmreza/thirtyfour", branch = "logs-command" }
+thirtyfour = { path = "../thirtyfour" }
 tokio = { version = "1.16.1", features = ["full"] }

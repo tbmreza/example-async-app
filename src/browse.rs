@@ -1,6 +1,7 @@
 use eyre::eyre;
 use std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
+use thirtyfour::LogType; // if cargo points to my fork
 use tokio;
 use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -18,6 +19,7 @@ pub async fn run() -> color_eyre::Result<()> {
     // let mut caps = DesiredCapabilities::chrome();
     // caps.add_chrome_arg("--headless")?;
 
+    // NOTE timeout building driver (if driver in docker container is not safely closed?)
     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
 
     driver.get("https://wikipedia.org").await?;
@@ -66,16 +68,35 @@ pub async fn localhost() -> color_eyre::Result<()> {
     }
 }
 
+pub async fn log_commands(url: &str) -> color_eyre::Result<()> {
+    let mut caps = DesiredCapabilities::firefox();
+    caps.add_firefox_arg("--headless")?;
+
+    let driver = WebDriver::new("http://localhost:4444", &caps).await?;
+
+    driver.get(url).await?;
+
+    // // test log commands
+    // let ss = driver.log_types().await?;
+    let ss = driver.get_log(LogType::Browser).await?;
+    println!("{:?}", ss);
+
+    println!("string dari myrepl"); // OK
+
+    driver.quit().await?;
+    Ok(())
+}
+
 pub async fn goto(urlbar: Urlbar, url: &str) -> color_eyre::Result<()> {
+    let mut bar = urlbar.lock().unwrap();
+    *bar = url.to_string();
+
     let mut caps = DesiredCapabilities::firefox();
     caps.add_firefox_arg("--headless")?;
 
     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
 
     // instantiate driver in separate async function?
-
-    let mut bar = urlbar.lock().unwrap();
-    *bar = url.to_string();
 
     driver.get(url).await?;
     let source = driver.page_source().await?;

@@ -1207,8 +1207,6 @@ dependencies = [
 [[package]]
 name = "thirtyfour"
 version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "447637d3f52a85e92f458f242efe2b351585c6aed5e90f7d2dbe407ef081a85e"
 dependencies = [
  "async-trait",
  "base64",
