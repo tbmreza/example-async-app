@@ -1,5 +1,8 @@
+/// geckodriver/marionette doesn't support get_log
+use color_eyre::Result;
 use eyre::eyre;
 use std::sync::{Arc, Mutex};
+use thirtyfour::error::{WebDriverError, WebDriverResult};
 use thirtyfour::prelude::*;
 use thirtyfour::LogType; // if cargo points to my fork
 use tokio;
@@ -10,7 +13,7 @@ use tokio::time::{sleep, Duration};
 
 pub type Urlbar = Arc<Mutex<String>>;
 
-pub async fn run() -> color_eyre::Result<()> {
+pub async fn run() -> Result<()> {
     // NOTE could not set the provided `Theme` via `color_spantrace::set_theme` globally as another was already set: InstallThemeError
     // color_eyre::install()?;
 
@@ -43,7 +46,7 @@ pub async fn run() -> color_eyre::Result<()> {
     Ok(())
 }
 
-pub async fn localhost() -> color_eyre::Result<()> {
+pub async fn localhost() -> Result<()> {
     let mut caps = DesiredCapabilities::firefox();
     caps.add_firefox_arg("--headless")?;
 
@@ -68,31 +71,61 @@ pub async fn localhost() -> color_eyre::Result<()> {
     }
 }
 
-pub async fn log_commands(url: &str) -> color_eyre::Result<()> {
-    let mut caps = DesiredCapabilities::firefox();
-    caps.add_firefox_arg("--headless")?;
+pub async fn get_log(url: &str) -> Result<()> {
+    let mut caps = DesiredCapabilities::chrome();
+    caps.add_chrome_arg("--headless")?;
+    println!("setelah tambah headless: {:?}", caps);
+
+    caps.set_logging_prefs();
+    println!("stlh tambah prefs: {:?}", caps);
+
+    Ok(())
+}
+
+// pub async fn get_log(url: &str) -> Result<()> {
+//     let mut caps = DesiredCapabilities::chrome();
+//     caps.add_chrome_arg("--headless")?;
+//     caps.set_logging_prefs();
+//
+//     // let mut caps = DesiredCapabilities::firefox();
+//     // caps.add_firefox_arg("--headless")?;
+//
+//     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
+//
+//     driver.get(url).await?;
+//     println!("getting...");
+//     sleep(Duration::from_millis(1500)).await;
+//     // // test log commands
+//     let ss = driver.get_log(LogType::Browser).await?;
+//
+//     driver.quit().await?;
+//     Ok(())
+// }
+
+/// Make driver if none is already running and query available log types.
+pub async fn log_types() -> Result<()> {
+    let mut caps = DesiredCapabilities::chrome();
+    caps.add_chrome_arg("--headless")?;
 
     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
 
-    driver.get(url).await?;
-
-    // // test log commands
-    // let ss = driver.log_types().await?;
-    let ss = driver.get_log(LogType::Browser).await?;
-    println!("{:?}", ss);
-
-    println!("string dari myrepl"); // OK
+    match driver.log_types().await {
+        Ok(log_types) => println!("{:?}", log_types),
+        Err(e) => println!("{:?}", e),
+    }
 
     driver.quit().await?;
     Ok(())
 }
 
-pub async fn goto(urlbar: Urlbar, url: &str) -> color_eyre::Result<()> {
+pub async fn goto(urlbar: Urlbar, url: &str) -> Result<()> {
     let mut bar = urlbar.lock().unwrap();
     *bar = url.to_string();
 
-    let mut caps = DesiredCapabilities::firefox();
-    caps.add_firefox_arg("--headless")?;
+    let mut caps = DesiredCapabilities::chrome();
+    caps.add_chrome_arg("--headless")?;
+    // let mut caps = DesiredCapabilities::firefox();
+    // caps.add_firefox_arg("--headless")?;
 
     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
 
@@ -115,7 +148,7 @@ pub async fn goto(urlbar: Urlbar, url: &str) -> color_eyre::Result<()> {
     Ok(())
 }
 
-pub async fn print_page() -> color_eyre::Result<()> {
+pub async fn print_page() -> Result<()> {
     let buffer = {
         let mut f = File::open("page.txt").await?;
         let mut buffer = Vec::new();
