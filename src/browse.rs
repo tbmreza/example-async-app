@@ -115,6 +115,7 @@ pub async fn new_driver(port: u16) -> Result<()> {
 }
 
 #[test]
+// #[ignore]
 fn test_new_driver() {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -141,6 +142,7 @@ fn test_blocking_log_types() {
 }
 
 #[test]
+// #[ignore]
 fn test_blocking_goto() {
     let urlbar = Arc::new(Mutex::new(String::new()));
     let url = "https://wikipedia.org";

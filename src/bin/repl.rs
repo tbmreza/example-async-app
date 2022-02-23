@@ -1,13 +1,22 @@
-#![feature(async_closure)]
+// use async_std::task;
 use color_eyre::Result;
 use myrepl::browse::*;
 #[allow(unused_imports)]
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::sync::{Arc, Mutex};
-use thirtyfour::prelude::*;
+// use thirtyfour::prelude::*;
 use tokio;
 
+/// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
+// let driver = {
+//     let mut caps = DesiredCapabilities::chrome();
+//     caps.add_chrome_arg("--headless")?;
+//     let d = WebDriver::new("http://localhost:4444", &caps).await?;
+//     Arc::new(Mutex::new(d))
+// };
+
+// async fn core_loop() -> Result<()> {
 fn core_loop() -> Result<()> {
     let mut rl = Editor::<()>::new();
     if rl.load_history("history.txt").is_err() {
@@ -23,12 +32,6 @@ fn core_loop() -> Result<()> {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
                 match splitted.first() {
-                    Some(&"34") => {
-                        let rt = tokio::runtime::Builder::new_current_thread()
-                            .enable_all()
-                            .build()?;
-                        rt.block_on(run());
-                    }
                     Some(&"urlbar") => {
                         match splitted.len() {
                             1 => {
@@ -139,5 +142,6 @@ fn main() -> Result<()> {
     // spawn driver in other thread here?
     // another thread to tell it to goto where
 
+    // task::block_on(core_loop())
     core_loop()
 }
