@@ -5,17 +5,10 @@ use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::sync::{Arc, Mutex};
+use thirtyfour::prelude::*;
+use tokio;
 use tokio::io::{self, AsyncWriteExt};
 use tokio::sync::mpsc;
-// use thirtyfour::prelude::*;
-use tokio;
-
-// let driver = {
-//     let mut caps = DesiredCapabilities::chrome();
-//     caps.add_chrome_arg("--headless")?;
-//     let d = WebDriver::new("http://localhost:4444", &caps).await?;
-//     Arc::new(Mutex::new(d))
-// };
 
 /// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
 #[tokio::main]
@@ -26,20 +19,41 @@ async fn main() -> Result<()> {
     }
 
     let urlbar = Arc::new(Mutex::new(String::new()));
-    // let driver;
+
+    let driver = {
+        let mut caps = DesiredCapabilities::chrome();
+        caps.add_chrome_arg("--headless")?;
+        WebDriver::new("http://localhost:4444", &caps).await?
+    };
+
     let (tx, mut rx) = mpsc::channel(2);
 
     let manager = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
             match cmd {
                 12 => {
-                    // TODO uncomment driver
-                    // problem: prompt sering ga muncul.
                     // kalo approach ini gagal, clone contoh app client (loop) server (WebDriver)
                     println!("proses LogTypes....");
-                    // // executes after CTRL-C:
+                    match driver.log_types().await {
+                        Ok(log_types) => {
+                            println!("{:?}", log_types)
+                        }
+                        Err(e) => println!("{:?}", e),
+                    }
+                    // problem: prompt sering ga muncul. executes after CTRL-C:
                     // let mut stdout = io::stdout();
                     // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
+                }
+                22 => {
+                    println!("proses goto.....");
+                    // match driver.goto(url).await {
+                    match driver.get("localhost:3030/print/console-log.html").await {
+                        Ok(_) => {
+                            // TODO actually write to page.txt
+                            println!("driver get OK")
+                        }
+                        Err(e) => println!("{:?}", e),
+                    }
                 }
                 cmd => println!("got: {}", cmd),
             }
@@ -129,13 +143,19 @@ async fn main() -> Result<()> {
                     }
                     Some(&"goto") => {
                         // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
-                        if let Some(url) = splitted.get(1) {
-                            let rt = tokio::runtime::Builder::new_current_thread()
-                                .enable_all()
-                                .build()?;
-                            rt.block_on(goto(urlbar.clone(), url));
-                        } else {
-                            println!("Wrong number of arguments: {}", line);
+                        match splitted.get(1) {
+                            // Some(url) if splitted.len() == 2 => {
+                            Some(_url) if splitted.len() == 2 => {
+                                let tx = tx.clone(); // Each loop iteration moves tx.
+
+                                tokio::spawn(async move {
+                                    if let Err(_) = tx.send(22).await {
+                                        println!("receiver dropped");
+                                        return;
+                                    }
+                                });
+                            }
+                            _ => println!("Wrong number of arguments: {}", line),
                         }
                     }
                     _ => println!("Unrecognized: {}", line),
