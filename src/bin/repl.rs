@@ -5,10 +5,11 @@ use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::sync::{Arc, Mutex};
+use tokio::io::{self, AsyncWriteExt};
+use tokio::sync::mpsc;
 // use thirtyfour::prelude::*;
 use tokio;
 
-/// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
 // let driver = {
 //     let mut caps = DesiredCapabilities::chrome();
 //     caps.add_chrome_arg("--headless")?;
@@ -16,14 +17,34 @@ use tokio;
 //     Arc::new(Mutex::new(d))
 // };
 
-// async fn core_loop() -> Result<()> {
-fn core_loop() -> Result<()> {
+/// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
+#[tokio::main]
+async fn main() -> Result<()> {
     let mut rl = Editor::<()>::new();
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
 
     let urlbar = Arc::new(Mutex::new(String::new()));
+    // let driver;
+    let (tx, mut rx) = mpsc::channel(2);
+
+    let manager = tokio::spawn(async move {
+        while let Some(cmd) = rx.recv().await {
+            match cmd {
+                12 => {
+                    // TODO uncomment driver
+                    // problem: prompt sering ga muncul.
+                    // kalo approach ini gagal, clone contoh app client (loop) server (WebDriver)
+                    println!("proses LogTypes....");
+                    // // executes after CTRL-C:
+                    // let mut stdout = io::stdout();
+                    // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
+                }
+                cmd => println!("got: {}", cmd),
+            }
+        }
+    });
 
     loop {
         let readline = rl.readline(">> ");
@@ -94,12 +115,12 @@ fn core_loop() -> Result<()> {
                     }
                     Some(&"log_types") => {
                         if splitted.len() == 1 {
-                            let rt = tokio::runtime::Builder::new_current_thread()
-                                .enable_all()
-                                .build()?;
-                            rt.block_on(async {
-                                if let Err(e) = log_types().await {
-                                    println!("{}", e);
+                            let tx = tx.clone(); // Each loop iteration moves tx.
+
+                            tokio::spawn(async move {
+                                if let Err(_) = tx.send(12).await {
+                                    println!("receiver dropped");
+                                    return;
                                 }
                             });
                         } else {
@@ -134,14 +155,8 @@ fn core_loop() -> Result<()> {
             }
         }
     }
+    // manager.await.unwrap();  // dengan atau tanpa ini: kadang promptnya gak ada, tapi functionality ok
+
     rl.save_history("history.txt").unwrap();
     Ok(())
-}
-
-fn main() -> Result<()> {
-    // spawn driver in other thread here?
-    // another thread to tell it to goto where
-
-    // task::block_on(core_loop())
-    core_loop()
 }
