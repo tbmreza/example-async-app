@@ -1,13 +1,14 @@
-// use async_std::task;
+#![allow(unused_imports)]
 use color_eyre::Result;
 use myrepl::browse::*;
-#[allow(unused_imports)]
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
 use tokio;
-use tokio::io::{self, AsyncWriteExt};
+use tokio::fs::File;
+use tokio::fs::OpenOptions;
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
 /// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
@@ -45,14 +46,26 @@ async fn main() -> Result<()> {
                     // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
                 }
                 22 => {
-                    println!("proses goto.....");
-                    // match driver.goto(url).await {
+                    // match driver.get(url).await {
                     match driver.get("localhost:3030/print/console-log.html").await {
                         Ok(_) => {
-                            // TODO actually write to page.txt
+                            if let Ok(s) = driver.page_source().await {
+                                let mut file = OpenOptions::new()
+                                    .read(true)
+                                    .write(true)
+                                    .truncate(true)
+                                    .create(true)
+                                    .open("page.txt")
+                                    .await
+                                    .expect("build file handle failure");
+
+                                if let Err(e) = file.write_all(s.as_bytes()).await {
+                                    eprintln!("{:?}", e);
+                                };
+                            }
                             println!("driver get OK")
                         }
-                        Err(e) => println!("{:?}", e),
+                        Err(e) => eprintln!("{:?}", e),
                     }
                 }
                 cmd => println!("got: {}", cmd),
