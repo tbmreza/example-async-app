@@ -3,7 +3,8 @@ use color_eyre::Result;
 use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use std::sync::{Arc, Mutex};
+// use std::sync::{Arc, Mutex};
+use async_std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
 use tokio;
 use tokio::fs::File;
@@ -46,8 +47,13 @@ async fn main() -> Result<()> {
                     // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
                 }
                 22 => {
-                    // match driver.get(url).await {
-                    match driver.get("localhost:3030/print/console-log.html").await {
+                    let url = {
+                        // let url = urlbar.clone().lock().unwrap();
+                        let url = urlbar.clone().lock().await;
+                        &*url
+                    };
+                    match driver.get(url.to_owned()).await {
+                        // match driver.get("localhost:3030/print/console-log.html").await {
                         Ok(_) => {
                             if let Ok(s) = driver.page_source().await {
                                 let mut file = OpenOptions::new()
@@ -80,26 +86,26 @@ async fn main() -> Result<()> {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
                 match splitted.first() {
-                    Some(&"urlbar") => {
-                        match splitted.len() {
-                            1 => {
-                                let url = urlbar.lock().unwrap();
-                                println!("The urlbar reads: {:?}", &url);
-                            }
-                            _ => {
-                                // sets url to shared state
-                                if splitted.len() > 2 {
-                                    println!("Usage: `urlbar [URL]`");
-                                } else {
-                                    if let Some(url) = splitted.get(1) {
-                                        let mut bar = urlbar.lock().unwrap();
-                                        *bar = url.to_string();
-                                        // println!("set the urlbar");
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Some(&"urlbar") => {
+                    //     match splitted.len() {
+                    //         1 => {
+                    //             let url = urlbar.lock().unwrap();
+                    //             println!("The urlbar reads: {:?}", &url);
+                    //         }
+                    //         _ => {
+                    //             // sets url to shared state
+                    //             if splitted.len() > 2 {
+                    //                 println!("Usage: `urlbar [URL]`");
+                    //             } else {
+                    //                 if let Some(url) = splitted.get(1) {
+                    //                     let mut bar = urlbar.lock().unwrap();
+                    //                     *bar = url.to_string();
+                    //                     // println!("set the urlbar");
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
                     Some(&"page") => {
                         match splitted.len() {
                             1 => {
@@ -157,8 +163,12 @@ async fn main() -> Result<()> {
                     Some(&"goto") => {
                         // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
                         match splitted.get(1) {
-                            // Some(url) if splitted.len() == 2 => {
-                            Some(_url) if splitted.len() == 2 => {
+                            // Some(_url) if splitted.len() == 2 => {
+                            Some(url) if splitted.len() == 2 => {
+                                // update shared state
+                                // let mut urlbar = urlbar.lock().unwrap();
+                                *urlbar.get_mut() = url.to_string();
+
                                 let tx = tx.clone(); // Each loop iteration moves tx.
 
                                 tokio::spawn(async move {
