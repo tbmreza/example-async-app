@@ -11,6 +11,13 @@ use tokio::fs::OpenOptions;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
+#[derive(Debug)]
+enum Command {
+    LogTypes,
+    // Goto(String)
+    Goto,
+}
+
 /// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -19,7 +26,7 @@ async fn main() -> Result<()> {
         println!("No previous history.");
     }
 
-    let urlbar = Arc::new(Mutex::new(String::new()));
+    // let urlbar = Arc::new(Mutex::new(String::new()));
 
     let driver = {
         let mut caps = DesiredCapabilities::chrome();
@@ -32,9 +39,7 @@ async fn main() -> Result<()> {
     let manager = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
             match cmd {
-                12 => {
-                    // kalo approach ini gagal, clone contoh app client (loop) server (WebDriver)
-                    println!("proses LogTypes....");
+                Command::LogTypes => {
                     match driver.log_types().await {
                         Ok(log_types) => {
                             println!("{:?}", log_types)
@@ -45,9 +50,11 @@ async fn main() -> Result<()> {
                     // let mut stdout = io::stdout();
                     // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
                 }
-                22 => {
+                Command::Goto => {
+                    // println!("loading {}...", &url);
                     // match driver.get(url).await {
-                    match driver.get("localhost:3030/print/console-log.html").await {
+                    // match driver.get("localhost:3030/print/console-log.html").await {
+                    match driver.get("https://www.wikipedia.org").await {
                         Ok(_) => {
                             if let Ok(s) = driver.page_source().await {
                                 let mut file = OpenOptions::new()
@@ -68,7 +75,7 @@ async fn main() -> Result<()> {
                         Err(e) => eprintln!("{:?}", e),
                     }
                 }
-                cmd => println!("got: {}", cmd),
+                // cmd => println!("got: {:?}", cmd),
             }
         }
     });
@@ -80,26 +87,26 @@ async fn main() -> Result<()> {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
                 match splitted.first() {
-                    Some(&"urlbar") => {
-                        match splitted.len() {
-                            1 => {
-                                let url = urlbar.lock().unwrap();
-                                println!("The urlbar reads: {:?}", &url);
-                            }
-                            _ => {
-                                // sets url to shared state
-                                if splitted.len() > 2 {
-                                    println!("Usage: `urlbar [URL]`");
-                                } else {
-                                    if let Some(url) = splitted.get(1) {
-                                        let mut bar = urlbar.lock().unwrap();
-                                        *bar = url.to_string();
-                                        // println!("set the urlbar");
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    // Some(&"urlbar") => {
+                    //     match splitted.len() {
+                    //         1 => {
+                    //             let url = urlbar.lock().unwrap();
+                    //             println!("The urlbar reads: {:?}", &url);
+                    //         }
+                    //         _ => {
+                    //             // sets url to shared state
+                    //             if splitted.len() > 2 {
+                    //                 println!("Usage: `urlbar [URL]`");
+                    //             } else {
+                    //                 if let Some(url) = splitted.get(1) {
+                    //                     let mut bar = urlbar.lock().unwrap();
+                    //                     *bar = url.to_string();
+                    //                     // println!("set the urlbar");
+                    //                 }
+                    //             }
+                    //         }
+                    //     }
+                    // }
                     Some(&"page") => {
                         match splitted.len() {
                             1 => {
@@ -145,7 +152,7 @@ async fn main() -> Result<()> {
                             let tx = tx.clone(); // Each loop iteration moves tx.
 
                             tokio::spawn(async move {
-                                if let Err(_) = tx.send(12).await {
+                                if let Err(_) = tx.send(Command::LogTypes).await {
                                     println!("receiver dropped");
                                     return;
                                 }
@@ -162,7 +169,8 @@ async fn main() -> Result<()> {
                                 let tx = tx.clone(); // Each loop iteration moves tx.
 
                                 tokio::spawn(async move {
-                                    if let Err(_) = tx.send(22).await {
+                                    // TODO which stringy type to pass around
+                                    if let Err(_) = tx.send(Command::Goto).await {
                                         println!("receiver dropped");
                                         return;
                                     }
