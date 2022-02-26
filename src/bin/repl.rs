@@ -1,9 +1,9 @@
 #![allow(unused_imports)]
+use async_std::sync::{Arc, Mutex};
 use color_eyre::Result;
 use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use std::sync::{Arc, Mutex};
 use thirtyfour::prelude::*;
 use tokio;
 use tokio::fs::File;
@@ -15,7 +15,7 @@ use tokio::sync::mpsc;
 enum Command {
     Page,
     LogTypes,
-    Goto(String),
+    Goto,
 }
 
 /// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
@@ -26,7 +26,8 @@ async fn main() -> Result<()> {
         println!("No previous history.");
     }
 
-    // let urlbar = Arc::new(Mutex::new(String::new()));
+    let urlbar = Arc::new(Mutex::new(String::new()));
+    let urlbar_clone = urlbar.clone();
 
     let driver = {
         let mut caps = DesiredCapabilities::chrome();
@@ -50,26 +51,31 @@ async fn main() -> Result<()> {
                     }
                     Err(e) => println!("{:?}", e),
                 },
-                Command::Goto(url) => match driver.get(url).await {
-                    Ok(_) => match driver.page_source().await {
-                        Ok(s) => {
-                            let mut file = OpenOptions::new()
-                                .read(true)
-                                .write(true)
-                                .truncate(true)
-                                .create(true)
-                                .open("page.txt")
-                                .await
-                                .expect("build file handle failure");
+                Command::Goto => {
+                    let urlbar = urlbar.clone();
+                    let url = urlbar.lock().await;
 
-                            if let Err(e) = file.write_all(s.as_bytes()).await {
-                                eprintln!("{:?}", e);
-                            };
-                        }
+                    match driver.get(url.clone()).await {
+                        Ok(_) => match driver.page_source().await {
+                            Ok(s) => {
+                                let mut file = OpenOptions::new()
+                                    .read(true)
+                                    .write(true)
+                                    .truncate(true)
+                                    .create(true)
+                                    .open("page.txt")
+                                    .await
+                                    .expect("build file handle failure");
+
+                                if let Err(e) = file.write_all(s.as_bytes()).await {
+                                    eprintln!("{:?}", e);
+                                };
+                            }
+                            Err(e) => eprintln!("{:?}", e),
+                        },
                         Err(e) => eprintln!("{:?}", e),
-                    },
-                    Err(e) => eprintln!("{:?}", e),
-                },
+                    }
+                }
             }
         }
     });
@@ -164,10 +170,14 @@ async fn main() -> Result<()> {
                         let arg = splitted.get(1).map(|s| s.to_string());
                         match arg {
                             Some(url) if splitted.len() == 2 => {
+                                let urlbar = urlbar_clone.clone();
+                                *urlbar.lock().await = url;
+
                                 let tx = tx.clone(); // Each loop iteration moves tx.
 
                                 tokio::spawn(async move {
-                                    if let Err(_) = tx.send(Command::Goto(url)).await {
+                                    // if let Err(_) = tx.send(Command::Goto(url)).await {
+                                    if let Err(_) = tx.send(Command::Goto).await {
                                         println!("receiver dropped");
                                         return;
                                     }
