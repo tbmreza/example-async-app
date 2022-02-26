@@ -87,26 +87,21 @@ async fn main() -> Result<()> {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
                 match splitted.first() {
-                    // Some(&"urlbar") => {
-                    //     match splitted.len() {
-                    //         1 => {
-                    //             let url = urlbar.lock().unwrap();
-                    //             println!("The urlbar reads: {:?}", &url);
-                    //         }
-                    //         _ => {
-                    //             // sets url to shared state
-                    //             if splitted.len() > 2 {
-                    //                 println!("Usage: `urlbar [URL]`");
-                    //             } else {
-                    //                 if let Some(url) = splitted.get(1) {
-                    //                     let mut bar = urlbar.lock().unwrap();
-                    //                     *bar = url.to_string();
-                    //                     // println!("set the urlbar");
-                    //                 }
-                    //             }
-                    //         }
-                    //     }
-                    // }
+                    Some(&"urlbar") => {
+                        match splitted.get(1) {
+                            None => {
+                                let urlbar = urlbar_clone.clone();
+                                let url = urlbar.lock().await;
+
+                                println!("The urlbar reads: {:?}", &url.clone());
+                            }
+                            Some(arg) if splitted.len() == 2 => {
+                                let urlbar = urlbar_clone.clone();
+                                *urlbar.lock().await = arg.to_string();
+                            }
+                            _ => eprintln!("Usage: `urlbar [URL]`"),
+                        }
+                    }
                     Some(&"page") => {
                         match splitted.len() {
                             1 => {
