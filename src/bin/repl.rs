@@ -13,9 +13,9 @@ use tokio::sync::mpsc;
 
 #[derive(Debug)]
 enum Command {
+    Page,
     LogTypes,
-    // Goto(String)
-    Goto,
+    Goto(String),
 }
 
 /// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
@@ -34,48 +34,42 @@ async fn main() -> Result<()> {
         WebDriver::new("http://localhost:4444", &caps).await?
     };
 
-    let (tx, mut rx) = mpsc::channel(2);
+    let (tx, mut rx) = mpsc::channel(1);
 
-    let manager = tokio::spawn(async move {
+    let _ = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
             match cmd {
-                Command::LogTypes => {
-                    match driver.log_types().await {
-                        Ok(log_types) => {
-                            println!("{:?}", log_types)
-                        }
-                        Err(e) => println!("{:?}", e),
+                Command::Page => {
+                    if let Err(e) = print_page().await {
+                        eprintln!("{:?}", e);
                     }
-                    // problem: prompt sering ga muncul. executes after CTRL-C:
-                    // let mut stdout = io::stdout();
-                    // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
                 }
-                Command::Goto => {
-                    // println!("loading {}...", &url);
-                    // match driver.get(url).await {
-                    // match driver.get("localhost:3030/print/console-log.html").await {
-                    match driver.get("https://www.wikipedia.org").await {
-                        Ok(_) => {
-                            if let Ok(s) = driver.page_source().await {
-                                let mut file = OpenOptions::new()
-                                    .read(true)
-                                    .write(true)
-                                    .truncate(true)
-                                    .create(true)
-                                    .open("page.txt")
-                                    .await
-                                    .expect("build file handle failure");
+                Command::LogTypes => match driver.log_types().await {
+                    Ok(log_types) => {
+                        println!("{:?}", log_types)
+                    }
+                    Err(e) => println!("{:?}", e),
+                },
+                Command::Goto(url) => match driver.get(url).await {
+                    Ok(_) => match driver.page_source().await {
+                        Ok(s) => {
+                            let mut file = OpenOptions::new()
+                                .read(true)
+                                .write(true)
+                                .truncate(true)
+                                .create(true)
+                                .open("page.txt")
+                                .await
+                                .expect("build file handle failure");
 
-                                if let Err(e) = file.write_all(s.as_bytes()).await {
-                                    eprintln!("{:?}", e);
-                                };
-                            }
-                            println!("driver get OK")
+                            if let Err(e) = file.write_all(s.as_bytes()).await {
+                                eprintln!("{:?}", e);
+                            };
                         }
                         Err(e) => eprintln!("{:?}", e),
-                    }
-                }
-                // cmd => println!("got: {:?}", cmd),
+                    },
+                    Err(e) => eprintln!("{:?}", e),
+                },
             }
         }
     });
@@ -110,14 +104,21 @@ async fn main() -> Result<()> {
                     Some(&"page") => {
                         match splitted.len() {
                             1 => {
-                                // read page.txt
-                                let rt = tokio::runtime::Builder::new_current_thread()
-                                    .enable_all()
-                                    .build()?;
-                                rt.block_on(print_page());
+                                let tx = tx.clone(); // Each loop iteration moves tx.
+
+                                tokio::spawn(async move {
+                                    if let Err(_) = tx.send(Command::Page).await {
+                                        println!("receiver dropped");
+                                        return;
+                                    }
+                                });
                             }
                             2 => {
-                                // reload and then read page.txt
+                                // TODO Goto provides option to immediately print page, rather than
+                                // user inputting Goto and then Page.
+                                //
+                                // usage: page refresh
+                                // reads: Goto(shared_state_url, immediately_print = true)
                                 if let Some(&"refresh") = splitted.get(1) {
                                     println!("goto set url, print content of page.txt");
                                 } else {
@@ -138,11 +139,8 @@ async fn main() -> Result<()> {
                         }
                     }
                     Some(&"get_log") => {
-                        if let Some(url) = splitted.get(1) {
-                            let rt = tokio::runtime::Builder::new_current_thread()
-                                .enable_all()
-                                .build()?;
-                            rt.block_on(get_log(url));
+                        if let Some(_url) = splitted.get(1) {
+                            // get_log(url)
                         } else {
                             println!("Wrong number of arguments: {}", line);
                         }
@@ -163,14 +161,13 @@ async fn main() -> Result<()> {
                     }
                     Some(&"goto") => {
                         // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
-                        match splitted.get(1) {
-                            // Some(url) if splitted.len() == 2 => {
-                            Some(_url) if splitted.len() == 2 => {
+                        let arg = splitted.get(1).map(|s| s.to_string());
+                        match arg {
+                            Some(url) if splitted.len() == 2 => {
                                 let tx = tx.clone(); // Each loop iteration moves tx.
 
                                 tokio::spawn(async move {
-                                    // TODO which stringy type to pass around
-                                    if let Err(_) = tx.send(Command::Goto).await {
+                                    if let Err(_) = tx.send(Command::Goto(url)).await {
                                         println!("receiver dropped");
                                         return;
                                     }

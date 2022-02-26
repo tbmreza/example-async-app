@@ -210,6 +210,9 @@ pub async fn goto(urlbar: Urlbar, url: &str) -> Result<()> {
     Ok(())
 }
 
+// problem: prompt sering ga muncul. executes after CTRL-C:
+// let mut stdout = io::stdout();
+// if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
 pub async fn print_page() -> Result<()> {
     let buffer = {
         let mut f = File::open("page.txt").await?;
@@ -219,7 +222,9 @@ pub async fn print_page() -> Result<()> {
     };
 
     let mut stdout = io::stdout();
-    stdout.write_all(&buffer).await?;
+    if let Err(e) = stdout.write_all(&buffer).await {
+        eprintln!("{:?}", e);
+    }
 
     Ok(())
 }
