@@ -101,33 +101,38 @@ async fn main() -> Result<()> {
                         }
                         _ => eprintln!("Usage: `urlbar [URL]`"),
                     },
-                    Some(&"page") => {
-                        match splitted.len() {
-                            1 => {
+                    Some(&"page") => match splitted.len() {
+                        1 => {
+                            let tx = tx.clone();
+
+                            tokio::spawn(async move {
+                                if let Err(_) = tx.send(Command::Page).await {
+                                    println!("receiver dropped");
+                                    return;
+                                }
+                            });
+                        }
+                        2 => {
+                            if let Some(&"refresh") = splitted.get(1) {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
+                                    // TODO make this fallible
+                                    if let Err(_) = tx.send(Command::Goto).await {
+                                        println!("receiver dropped");
+                                        return;
+                                    }
                                     if let Err(_) = tx.send(Command::Page).await {
                                         println!("receiver dropped");
                                         return;
                                     }
                                 });
+                            } else {
+                                println!("subcommand not recognized");
                             }
-                            2 => {
-                                // TODO Goto provides option to immediately print page, rather than
-                                // user inputting Goto and then Page.
-                                //
-                                // usage: page refresh
-                                // reads: Goto(shared_state_url, immediately_print = true)
-                                if let Some(&"refresh") = splitted.get(1) {
-                                    println!("goto set url, print content of page.txt");
-                                } else {
-                                    println!("subcommand not recognized");
-                                }
-                            }
-                            _ => println!("Did you mean: `page refresh`?"),
                         }
-                    }
+                        _ => println!("Did you mean: `page refresh`?"),
+                    },
                     Some(&"console") => {
                         if splitted.len() == 1 {
                             // read console.txt
@@ -170,7 +175,6 @@ async fn main() -> Result<()> {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
-                                    // if let Err(_) = tx.send(Command::Goto(url)).await {
                                     if let Err(_) = tx.send(Command::Goto).await {
                                         println!("receiver dropped");
                                         return;
