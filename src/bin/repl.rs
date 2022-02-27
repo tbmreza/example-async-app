@@ -1,4 +1,4 @@
-#![allow(unused_imports)]
+// #![allow(unused_imports)]
 use async_std::sync::{Arc, Mutex};
 use color_eyre::Result;
 use myrepl::browse::*;
@@ -6,9 +6,10 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use thirtyfour::prelude::*;
 use tokio;
-use tokio::fs::File;
+// use tokio::fs::File;
 use tokio::fs::OpenOptions;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+// use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -18,7 +19,7 @@ enum Command {
     Goto,
 }
 
-/// Tokio channel that starts and operates WebDriver. Accepts Method, prints response.
+/// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut rl = Editor::<()>::new();
@@ -87,25 +88,23 @@ async fn main() -> Result<()> {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
                 match splitted.first() {
-                    Some(&"urlbar") => {
-                        match splitted.get(1) {
-                            None => {
-                                let urlbar = urlbar_clone.clone();
-                                let url = urlbar.lock().await;
+                    Some(&"urlbar") => match splitted.get(1) {
+                        None => {
+                            let urlbar = urlbar_clone.clone();
+                            let url = urlbar.lock().await;
 
-                                println!("The urlbar reads: {:?}", &url.clone());
-                            }
-                            Some(arg) if splitted.len() == 2 => {
-                                let urlbar = urlbar_clone.clone();
-                                *urlbar.lock().await = arg.to_string();
-                            }
-                            _ => eprintln!("Usage: `urlbar [URL]`"),
+                            println!("The urlbar reads: {:?}", &url.clone());
                         }
-                    }
+                        Some(arg) if splitted.len() == 2 => {
+                            let urlbar = urlbar_clone.clone();
+                            *urlbar.lock().await = arg.to_string();
+                        }
+                        _ => eprintln!("Usage: `urlbar [URL]`"),
+                    },
                     Some(&"page") => {
                         match splitted.len() {
                             1 => {
-                                let tx = tx.clone(); // Each loop iteration moves tx.
+                                let tx = tx.clone();
 
                                 tokio::spawn(async move {
                                     if let Err(_) = tx.send(Command::Page).await {
@@ -148,7 +147,7 @@ async fn main() -> Result<()> {
                     }
                     Some(&"log_types") => {
                         if splitted.len() == 1 {
-                            let tx = tx.clone(); // Each loop iteration moves tx.
+                            let tx = tx.clone();
 
                             tokio::spawn(async move {
                                 if let Err(_) = tx.send(Command::LogTypes).await {
@@ -168,7 +167,7 @@ async fn main() -> Result<()> {
                                 let urlbar = urlbar_clone.clone();
                                 *urlbar.lock().await = url;
 
-                                let tx = tx.clone(); // Each loop iteration moves tx.
+                                let tx = tx.clone();
 
                                 tokio::spawn(async move {
                                     // if let Err(_) = tx.send(Command::Goto(url)).await {
