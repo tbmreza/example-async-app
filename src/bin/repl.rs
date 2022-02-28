@@ -101,38 +101,29 @@ async fn main() -> Result<()> {
                         }
                         _ => eprintln!("Usage: `urlbar [URL]`"),
                     },
-                    Some(&"page") => match splitted.len() {
-                        1 => {
-                            let tx = tx.clone();
-
-                            tokio::spawn(async move {
-                                if let Err(_) = tx.send(Command::Page).await {
-                                    println!("receiver dropped");
-                                    return;
-                                }
-                            });
-                        }
-                        2 => {
-                            if let Some(&"refresh") = splitted.get(1) {
+                    Some(&"page") => {
+                        let subcommand = splitted.get(1).unwrap_or(&"").to_string();
+                        match (splitted.len(), subcommand.as_str()) {
+                            (1, _) | (2, "refresh") => {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
-                                    // TODO make this fallible
-                                    if let Err(_) = tx.send(Command::Goto).await {
-                                        println!("receiver dropped");
-                                        return;
+                                    if subcommand == "refresh" {
+                                        // TODO make this fallible: return to user prompt
+                                        if let Err(_) = tx.send(Command::Goto).await {
+                                            println!("receiver dropped");
+                                            return;
+                                        }
                                     }
                                     if let Err(_) = tx.send(Command::Page).await {
                                         println!("receiver dropped");
                                         return;
                                     }
                                 });
-                            } else {
-                                println!("subcommand not recognized");
                             }
+                            _ => eprintln!("Usage: page [refresh]"),
                         }
-                        _ => println!("Did you mean: `page refresh`?"),
-                    },
+                    }
                     Some(&"console") => {
                         if splitted.len() == 1 {
                             // read console.txt
