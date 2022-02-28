@@ -16,7 +16,14 @@ use tokio::sync::mpsc;
 enum Command {
     Page,
     LogTypes,
+    GetLog(LogType),
     Goto,
+}
+
+#[derive(Debug)]
+enum LogType {
+    Browser,
+    Driver,
 }
 
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
@@ -52,6 +59,7 @@ async fn main() -> Result<()> {
                     }
                     Err(e) => println!("{:?}", e),
                 },
+                Command::GetLog(_) => {}
                 Command::Goto => {
                     let urlbar = urlbar.clone();
                     let url = urlbar.lock().await;
@@ -121,24 +129,23 @@ async fn main() -> Result<()> {
                                     }
                                 });
                             }
-                            _ => eprintln!("Usage: page [refresh]"),
+                            _ => eprintln!("Usage: `page [refresh]`"),
                         }
                     }
                     Some(&"console") => {
                         if splitted.len() == 1 {
-                            // read console.txt
-                            println!("reading...");
+                            let tx = tx.clone();
+
+                            tokio::spawn(async move {
+                                if let Err(_) = tx.send(Command::GetLog(LogType::Browser)).await {
+                                    println!("receiver dropped");
+                                    return;
+                                }
+                            });
                         } else {
                             println!(
                                 "`console` prints browser's console and doesn't take any arguments"
                             );
-                        }
-                    }
-                    Some(&"get_log") => {
-                        if let Some(_url) = splitted.get(1) {
-                            // get_log(url)
-                        } else {
-                            println!("Wrong number of arguments: {}", line);
                         }
                     }
                     Some(&"log_types") => {
