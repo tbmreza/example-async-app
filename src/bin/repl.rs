@@ -5,6 +5,7 @@ use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use thirtyfour::prelude::*;
+use thirtyfour::LogType;
 use tokio;
 // use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -18,12 +19,6 @@ enum Command {
     LogTypes,
     GetLog(LogType),
     Goto,
-}
-
-#[derive(Debug)]
-enum LogType {
-    Browser,
-    Driver,
 }
 
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
@@ -59,7 +54,12 @@ async fn main() -> Result<()> {
                     }
                     Err(e) => println!("{:?}", e),
                 },
-                Command::GetLog(_) => {}
+                Command::GetLog(log_type) => match driver.get_log(log_type).await {
+                    Ok(v) => {
+                        println!("{:?}", &v)
+                    }
+                    Err(e) => println!("{:?}", e),
+                },
                 Command::Goto => {
                     let urlbar = urlbar.clone();
                     let url = urlbar.lock().await;
@@ -132,7 +132,7 @@ async fn main() -> Result<()> {
                             _ => eprintln!("Usage: `page [refresh]`"),
                         }
                     }
-                    Some(&"console") => {
+                    Some(&"console-log") => {
                         if splitted.len() == 1 {
                             let tx = tx.clone();
 
@@ -148,7 +148,7 @@ async fn main() -> Result<()> {
                             );
                         }
                     }
-                    Some(&"log_types") => {
+                    Some(&"log-types") => {
                         if splitted.len() == 1 {
                             let tx = tx.clone();
 
