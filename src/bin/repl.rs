@@ -6,6 +6,7 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use thirtyfour::prelude::*;
 use thirtyfour::LogType;
+use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
 use tokio;
 // use tokio::fs::File;
 use tokio::fs::OpenOptions;
@@ -35,6 +36,7 @@ async fn main() -> Result<()> {
     let driver = {
         let mut caps = DesiredCapabilities::chrome();
         caps.add_chrome_arg("--headless")?;
+        caps.set_logging(LogType::Browser, LoggingPrefsLogLevel::All)?;
         WebDriver::new("http://localhost:4444", &caps).await?
     };
 

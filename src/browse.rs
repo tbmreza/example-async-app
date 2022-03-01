@@ -71,37 +71,6 @@ pub async fn localhost() -> Result<()> {
     }
 }
 
-pub async fn get_log(url: &str) -> Result<()> {
-    let mut caps = DesiredCapabilities::chrome();
-    caps.add_chrome_arg("--headless")?;
-    println!("setelah tambah headless: {:?}", caps);
-
-    caps.set_logging_prefs();
-    println!("stlh tambah prefs: {:?}", caps);
-
-    Ok(())
-}
-
-// pub async fn get_log(url: &str) -> Result<()> {
-//     let mut caps = DesiredCapabilities::chrome();
-//     caps.add_chrome_arg("--headless")?;
-//     caps.set_logging_prefs();
-//
-//     // let mut caps = DesiredCapabilities::firefox();
-//     // caps.add_firefox_arg("--headless")?;
-//
-//     let driver = WebDriver::new("http://localhost:4444", &caps).await?;
-//
-//     driver.get(url).await?;
-//     println!("getting...");
-//     sleep(Duration::from_millis(1500)).await;
-//     // // test log commands
-//     let ss = driver.get_log(LogType::Browser).await?;
-//
-//     driver.quit().await?;
-//     Ok(())
-// }
-
 /// Driver to be shared among methods.
 pub async fn new_driver(port: u16) -> Result<()> {
     let url = format!("http://localhost:{}", port);
