@@ -4,13 +4,15 @@ use color_eyre::Result;
 use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
+use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
 use thirtyfour::prelude::*;
 use thirtyfour::LogType;
-use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
 use tokio;
 // use tokio::fs::File;
 use tokio::fs::OpenOptions;
 // use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use serde::Deserialize;
+use serde_json::{from_value, Value};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
@@ -20,6 +22,45 @@ enum Command {
     LogTypes,
     GetLog(LogType),
     Goto,
+}
+
+struct LogJSON(Value);
+
+#[derive(Deserialize, Default)]
+struct ConsoleItem {
+    message: String,
+    #[allow(dead_code)]
+    level: String,
+    #[allow(dead_code)]
+    source: String,
+    #[allow(dead_code)]
+    timestamp: u64,
+}
+
+impl std::fmt::Display for LogJSON {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let selenum_value = &self.clone().0;
+
+        match from_value(selenum_value.to_owned()).unwrap_or(Value::Null) {
+            Value::Array(items) => {
+                let console_items = items
+                    .into_iter()
+                    .map(|v| from_value::<ConsoleItem>(v).unwrap_or(ConsoleItem::default()))
+                    .collect::<Vec<ConsoleItem>>();
+
+                let messages = console_items
+                    .into_iter()
+                    .map(|i| i.message)
+                    .collect::<Vec<String>>();
+
+                // TODO bedah Object di dalem message. fields (message, level, source, timestamp)
+                // dan typesnya ditentuin di mana?
+
+                write!(f, "atas. {:?}", messages)
+            }
+            _ => write!(f, "{}", self.0),
+        }
+    }
 }
 
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
@@ -58,7 +99,7 @@ async fn main() -> Result<()> {
                 },
                 Command::GetLog(log_type) => match driver.get_log(log_type).await {
                     Ok(v) => {
-                        println!("{:?}", &v)
+                        println!("{:?}", &LogJSON(v).to_string())
                     }
                     Err(e) => println!("{:?}", e),
                 },
