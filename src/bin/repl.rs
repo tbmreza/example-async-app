@@ -17,11 +17,42 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
-enum Command {
+enum DriverMethod {
     Page,
     LogTypes,
     GetLog(LogType),
     Goto,
+}
+
+enum Command {
+    Help,
+    Goto,
+    Urlbar,
+    Page,
+    LogTypes,
+    Log,
+    ConsoleLog,
+    Unrecognized,
+}
+
+trait ToCommand {
+    fn to_command(&self) -> Command;
+}
+
+impl ToCommand for &str {
+    fn to_command(&self) -> Command {
+        let input = self.to_lowercase();
+        match input.trim() {
+            "help" => Command::Help,
+            "goto" => Command::Goto,
+            "urlbar" => Command::Urlbar,
+            "page" => Command::Page,
+            "log-types" | "lt" => Command::LogTypes,
+            "log" => Command::Log,
+            "console-log" | "cl" => Command::ConsoleLog,
+            _ => Command::Unrecognized,
+        }
+    }
 }
 
 struct LogJSON(Value);
@@ -86,24 +117,24 @@ async fn main() -> Result<()> {
     let _ = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
             match cmd {
-                Command::Page => {
+                DriverMethod::Page => {
                     if let Err(e) = print_page().await {
                         eprintln!("{:?}", e);
                     }
                 }
-                Command::LogTypes => match driver.log_types().await {
+                DriverMethod::LogTypes => match driver.log_types().await {
                     Ok(log_types) => {
                         println!("{:?}", log_types)
                     }
                     Err(e) => println!("{:?}", e),
                 },
-                Command::GetLog(log_type) => match driver.get_log(log_type).await {
+                DriverMethod::GetLog(log_type) => match driver.get_log(log_type).await {
                     Ok(v) => {
                         println!("{:?}", &LogJSON(v).to_string())
                     }
                     Err(e) => println!("{:?}", e),
                 },
-                Command::Goto => {
+                DriverMethod::Goto => {
                     let urlbar = urlbar.clone();
                     let url = urlbar.lock().await;
 
@@ -138,8 +169,20 @@ async fn main() -> Result<()> {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
-                match splitted.first() {
-                    Some(&"urlbar") => match splitted.get(1) {
+                let first_word = splitted.first().unwrap_or(&"");
+
+                match first_word.to_command() {
+                    Command::Help => {
+                        if splitted.len() == 1 {
+                            // print available commands
+                            println!("menu");
+                        } else {
+                            println!(
+                                "`help` prints available commands and doesn't take any arguments."
+                            );
+                        }
+                    }
+                    Command::Urlbar => match splitted.get(1) {
                         None => {
                             let urlbar = urlbar_clone.clone();
                             let url = urlbar.lock().await;
@@ -152,7 +195,7 @@ async fn main() -> Result<()> {
                         }
                         _ => eprintln!("Usage: `urlbar [URL]`"),
                     },
-                    Some(&"page") => {
+                    Command::Page => {
                         let subcommand = splitted.get(1).unwrap_or(&"").to_string();
                         match (splitted.len(), subcommand.as_str()) {
                             (1, _) | (2, "refresh") => {
@@ -161,12 +204,12 @@ async fn main() -> Result<()> {
                                 tokio::spawn(async move {
                                     if subcommand == "refresh" {
                                         // TODO make this fallible: return to user prompt
-                                        if let Err(_) = tx.send(Command::Goto).await {
+                                        if let Err(_) = tx.send(DriverMethod::Goto).await {
                                             println!("receiver dropped");
                                             return;
                                         }
                                     }
-                                    if let Err(_) = tx.send(Command::Page).await {
+                                    if let Err(_) = tx.send(DriverMethod::Page).await {
                                         println!("receiver dropped");
                                         return;
                                     }
@@ -175,12 +218,14 @@ async fn main() -> Result<()> {
                             _ => eprintln!("Usage: `page [refresh]`"),
                         }
                     }
-                    Some(&"console-log") => {
+                    Command::ConsoleLog => {
                         if splitted.len() == 1 {
                             let tx = tx.clone();
 
                             tokio::spawn(async move {
-                                if let Err(_) = tx.send(Command::GetLog(LogType::Browser)).await {
+                                if let Err(_) =
+                                    tx.send(DriverMethod::GetLog(LogType::Browser)).await
+                                {
                                     println!("receiver dropped");
                                     return;
                                 }
@@ -191,12 +236,12 @@ async fn main() -> Result<()> {
                             );
                         }
                     }
-                    Some(&"log-types") => {
+                    Command::LogTypes => {
                         if splitted.len() == 1 {
                             let tx = tx.clone();
 
                             tokio::spawn(async move {
-                                if let Err(_) = tx.send(Command::LogTypes).await {
+                                if let Err(_) = tx.send(DriverMethod::LogTypes).await {
                                     println!("receiver dropped");
                                     return;
                                 }
@@ -205,7 +250,7 @@ async fn main() -> Result<()> {
                             println!("Wrong number of arguments: {}", line);
                         }
                     }
-                    Some(&"goto") => {
+                    Command::Goto => {
                         // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
                         let arg = splitted.get(1).map(|s| s.to_string());
                         match arg {
@@ -216,7 +261,7 @@ async fn main() -> Result<()> {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
-                                    if let Err(_) = tx.send(Command::Goto).await {
+                                    if let Err(_) = tx.send(DriverMethod::Goto).await {
                                         println!("receiver dropped");
                                         return;
                                     }
@@ -225,7 +270,8 @@ async fn main() -> Result<()> {
                             _ => println!("Wrong number of arguments: {}", line),
                         }
                     }
-                    _ => println!("Unrecognized: {}", line),
+                    Command::Log => unimplemented!(),
+                    Command::Unrecognized => println!("Unrecognized: {}", line),
                 }
             }
             Err(ReadlineError::Interrupted) => {
