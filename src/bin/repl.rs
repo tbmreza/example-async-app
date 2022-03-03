@@ -13,6 +13,7 @@ use tokio::fs::OpenOptions;
 // use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use serde::Deserialize;
 use serde_json::{from_value, Value};
+use strum_macros::EnumIter;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
@@ -24,6 +25,7 @@ enum DriverMethod {
     Goto,
 }
 
+#[derive(Debug, EnumIter, PartialEq)]
 enum Command {
     Help,
     Goto,
@@ -38,6 +40,26 @@ enum Command {
 trait ToCommand {
     fn to_command(&self) -> Command;
 }
+
+// fn pascal_to_kebab
+// Command::iter().map(pascal_to_kebab)
+
+// use self::Command::*;
+// impl Command {
+//     pub fn iter() -> std::slice::Iter<'static, Command> {
+//         static COMMANDS: [Command; 8] = [
+//             Help,
+//             Goto,
+//             Urlbar,
+//             Page,
+//             LogTypes,
+//             Log,
+//             ConsoleLog,
+//             Unrecognized,
+//         ];
+//         COMMANDS.iter()
+//     }
+// }
 
 impl ToCommand for &str {
     fn to_command(&self) -> Command {
@@ -172,13 +194,26 @@ async fn main() -> Result<()> {
                 let first_word = splitted.first().unwrap_or(&"");
 
                 match first_word.to_command() {
-                    Command::Help => {
+                    Command::Help | Command::Unrecognized => {
                         if splitted.len() == 1 {
-                            // print available commands
-                            println!("menu");
+                            use case_style::CaseStyle;
+                            use strum::IntoEnumIterator;
+
+                            let kebabcase_commands = Command::iter()
+                                .filter(|c| *c != Command::Unrecognized)
+                                .map(|c| {
+                                    let command = format!("{:?}", c);
+                                    CaseStyle::from_pascalcase(command).to_kebabcase()
+                                });
+
+                            println!("Available commands:");
+                            for command in kebabcase_commands {
+                                println!("{:?}", command);
+                            }
                         } else {
                             println!(
-                                "`help` prints available commands and doesn't take any arguments."
+                                "`{}` prints available commands and doesn't take any arguments.",
+                                format!("{:?}", Command::Help).to_lowercase()
                             );
                         }
                     }
@@ -271,7 +306,6 @@ async fn main() -> Result<()> {
                         }
                     }
                     Command::Log => unimplemented!(),
-                    Command::Unrecognized => println!("Unrecognized: {}", line),
                 }
             }
             Err(ReadlineError::Interrupted) => {
