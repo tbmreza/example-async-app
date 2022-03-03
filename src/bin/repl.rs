@@ -70,15 +70,13 @@ struct ConsoleItem {
 
 impl std::fmt::Display for LogJSON {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        #[allow(clippy::clone_double_ref)]
-        let selenium_value = &self.clone().0;
+        let selenium_value = &(self.0);
 
         match from_value(selenium_value.to_owned()).unwrap_or(Value::Null) {
             Value::Array(items) => {
                 let console_items = items
                     .into_iter()
-                    .map(|v| from_value::<ConsoleItem>(v).unwrap_or_default())
-                    .collect::<Vec<ConsoleItem>>();
+                    .map(|v| from_value::<ConsoleItem>(v).unwrap_or_default());
 
                 let messages = console_items
                     .into_iter()
@@ -212,14 +210,14 @@ async fn main() -> Result<()> {
                                     tokio::spawn(async move {
                                         if subcommand == "refresh" {
                                             // TODO make this fallible: return to user prompt
-                                            if let Err(_) = tx.send(DriverMethod::Goto).await {
+                                            if tx.send(DriverMethod::Goto).await.is_err() {
                                                 println!("receiver dropped");
                                                 return;
                                             }
                                         }
-                                        if let Err(_) = tx.send(DriverMethod::Page).await {
+                                        // TODO test if this runs after Goto finishes
+                                        if tx.send(DriverMethod::Page).await.is_err() {
                                             println!("receiver dropped");
-                                            return;
                                         }
                                     });
                                 }
@@ -231,11 +229,8 @@ async fn main() -> Result<()> {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
-                                    if let Err(_) =
-                                        tx.send(DriverMethod::GetLog(LogType::Browser)).await
-                                    {
+                                    if tx.send(DriverMethod::GetLog(LogType::Browser)).await.is_err() {
                                         println!("receiver dropped");
-                                        return;
                                     }
                                 });
                             } else {
@@ -249,9 +244,8 @@ async fn main() -> Result<()> {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
-                                    if let Err(_) = tx.send(DriverMethod::LogTypes).await {
+                                    if tx.send(DriverMethod::LogTypes).await.is_err() {
                                         println!("receiver dropped");
-                                        return;
                                     }
                                 });
                             } else {
@@ -269,9 +263,8 @@ async fn main() -> Result<()> {
                                     let tx = tx.clone();
 
                                     tokio::spawn(async move {
-                                        if let Err(_) = tx.send(DriverMethod::Goto).await {
+                                        if tx.send(DriverMethod::Goto).await.is_err() {
                                             println!("receiver dropped");
-                                            return;
                                         }
                                     });
                                 }
