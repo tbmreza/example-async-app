@@ -27,7 +27,6 @@ enum DriverMethod {
 
 #[derive(Debug, EnumIter, PartialEq)]
 enum Command {
-    Help,
     Goto,
     Urlbar,
     Page,
@@ -41,31 +40,10 @@ trait ToCommand {
     fn to_command(&self) -> Command;
 }
 
-// fn pascal_to_kebab
-// Command::iter().map(pascal_to_kebab)
-
-// use self::Command::*;
-// impl Command {
-//     pub fn iter() -> std::slice::Iter<'static, Command> {
-//         static COMMANDS: [Command; 8] = [
-//             Help,
-//             Goto,
-//             Urlbar,
-//             Page,
-//             LogTypes,
-//             Log,
-//             ConsoleLog,
-//             Unrecognized,
-//         ];
-//         COMMANDS.iter()
-//     }
-// }
-
 impl ToCommand for &str {
     fn to_command(&self) -> Command {
         let input = self.to_lowercase();
         match input.trim() {
-            "help" => Command::Help,
             "goto" => Command::Goto,
             "urlbar" => Command::Urlbar,
             "page" => Command::Page,
@@ -191,11 +169,11 @@ async fn main() -> Result<()> {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
                 let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
-                let first_word = splitted.first().unwrap_or(&"");
 
-                match first_word.to_command() {
-                    Command::Help | Command::Unrecognized => {
-                        if splitted.len() == 1 {
+                // Do nothing if `splitted` is empty.
+                if let Some(first_word) = splitted.first() {
+                    match first_word.to_command() {
+                        Command::Unrecognized => {
                             use case_style::CaseStyle;
                             use strum::IntoEnumIterator;
 
@@ -210,102 +188,97 @@ async fn main() -> Result<()> {
                             for command in kebabcase_commands {
                                 println!("{:?}", command);
                             }
-                        } else {
-                            println!(
-                                "`{}` prints available commands and doesn't take any arguments.",
-                                format!("{:?}", Command::Help).to_lowercase()
-                            );
                         }
-                    }
-                    Command::Urlbar => match splitted.get(1) {
-                        None => {
-                            let urlbar = urlbar_clone.clone();
-                            let url = urlbar.lock().await;
+                        Command::Urlbar => match splitted.get(1) {
+                            None => {
+                                let urlbar = urlbar_clone.clone();
+                                let url = urlbar.lock().await;
 
-                            println!("The urlbar reads: {:?}", &url.clone());
+                                println!("The urlbar reads: {:?}", &url.clone());
+                            }
+                            Some(arg) if splitted.len() == 2 => {
+                                let urlbar = urlbar_clone.clone();
+                                *urlbar.lock().await = arg.to_string();
+                            }
+                            _ => eprintln!("Usage: `urlbar [URL]`"),
+                        },
+                        Command::Page => {
+                            let subcommand = splitted.get(1).unwrap_or(&"").to_string();
+                            match (splitted.len(), subcommand.as_str()) {
+                                (1, _) | (2, "refresh") => {
+                                    let tx = tx.clone();
+
+                                    tokio::spawn(async move {
+                                        if subcommand == "refresh" {
+                                            // TODO make this fallible: return to user prompt
+                                            if let Err(_) = tx.send(DriverMethod::Goto).await {
+                                                println!("receiver dropped");
+                                                return;
+                                            }
+                                        }
+                                        if let Err(_) = tx.send(DriverMethod::Page).await {
+                                            println!("receiver dropped");
+                                            return;
+                                        }
+                                    });
+                                }
+                                _ => eprintln!("Usage: `page [refresh]`"),
+                            }
                         }
-                        Some(arg) if splitted.len() == 2 => {
-                            let urlbar = urlbar_clone.clone();
-                            *urlbar.lock().await = arg.to_string();
-                        }
-                        _ => eprintln!("Usage: `urlbar [URL]`"),
-                    },
-                    Command::Page => {
-                        let subcommand = splitted.get(1).unwrap_or(&"").to_string();
-                        match (splitted.len(), subcommand.as_str()) {
-                            (1, _) | (2, "refresh") => {
+                        Command::ConsoleLog => {
+                            if splitted.len() == 1 {
                                 let tx = tx.clone();
 
                                 tokio::spawn(async move {
-                                    if subcommand == "refresh" {
-                                        // TODO make this fallible: return to user prompt
+                                    if let Err(_) =
+                                        tx.send(DriverMethod::GetLog(LogType::Browser)).await
+                                    {
+                                        println!("receiver dropped");
+                                        return;
+                                    }
+                                });
+                            } else {
+                                println!(
+                                "`console` prints browser's console and doesn't take any arguments"
+                            );
+                            }
+                        }
+                        Command::LogTypes => {
+                            if splitted.len() == 1 {
+                                let tx = tx.clone();
+
+                                tokio::spawn(async move {
+                                    if let Err(_) = tx.send(DriverMethod::LogTypes).await {
+                                        println!("receiver dropped");
+                                        return;
+                                    }
+                                });
+                            } else {
+                                println!("Wrong number of arguments: {}", line);
+                            }
+                        }
+                        Command::Goto => {
+                            // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
+                            let arg = splitted.get(1).map(|s| s.to_string());
+                            match arg {
+                                Some(url) if splitted.len() == 2 => {
+                                    let urlbar = urlbar_clone.clone();
+                                    *urlbar.lock().await = url;
+
+                                    let tx = tx.clone();
+
+                                    tokio::spawn(async move {
                                         if let Err(_) = tx.send(DriverMethod::Goto).await {
                                             println!("receiver dropped");
                                             return;
                                         }
-                                    }
-                                    if let Err(_) = tx.send(DriverMethod::Page).await {
-                                        println!("receiver dropped");
-                                        return;
-                                    }
-                                });
-                            }
-                            _ => eprintln!("Usage: `page [refresh]`"),
-                        }
-                    }
-                    Command::ConsoleLog => {
-                        if splitted.len() == 1 {
-                            let tx = tx.clone();
-
-                            tokio::spawn(async move {
-                                if let Err(_) =
-                                    tx.send(DriverMethod::GetLog(LogType::Browser)).await
-                                {
-                                    println!("receiver dropped");
-                                    return;
+                                    });
                                 }
-                            });
-                        } else {
-                            println!(
-                                "`console` prints browser's console and doesn't take any arguments"
-                            );
-                        }
-                    }
-                    Command::LogTypes => {
-                        if splitted.len() == 1 {
-                            let tx = tx.clone();
-
-                            tokio::spawn(async move {
-                                if let Err(_) = tx.send(DriverMethod::LogTypes).await {
-                                    println!("receiver dropped");
-                                    return;
-                                }
-                            });
-                        } else {
-                            println!("Wrong number of arguments: {}", line);
-                        }
-                    }
-                    Command::Goto => {
-                        // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
-                        let arg = splitted.get(1).map(|s| s.to_string());
-                        match arg {
-                            Some(url) if splitted.len() == 2 => {
-                                let urlbar = urlbar_clone.clone();
-                                *urlbar.lock().await = url;
-
-                                let tx = tx.clone();
-
-                                tokio::spawn(async move {
-                                    if let Err(_) = tx.send(DriverMethod::Goto).await {
-                                        println!("receiver dropped");
-                                        return;
-                                    }
-                                });
+                                _ => println!("Wrong number of arguments: {}", line),
                             }
-                            _ => println!("Wrong number of arguments: {}", line),
                         }
+                        Command::Log => unimplemented!(),
                     }
-                    Command::Log => unimplemented!(),
                 }
             }
             Err(ReadlineError::Interrupted) => {
