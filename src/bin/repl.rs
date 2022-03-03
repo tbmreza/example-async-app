@@ -1,19 +1,19 @@
 // #![allow(unused_imports)]
+// use tokio;
+// use tokio::fs::File;
+// use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use async_std::sync::{Arc, Mutex};
 use color_eyre::Result;
 use myrepl::browse::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
-use thirtyfour::prelude::*;
-use thirtyfour::LogType;
-use tokio;
-// use tokio::fs::File;
-use tokio::fs::OpenOptions;
-// use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use serde::Deserialize;
 use serde_json::{from_value, Value};
 use strum_macros::EnumIter;
+use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
+use thirtyfour::prelude::*;
+use thirtyfour::LogType;
+use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
@@ -70,13 +70,14 @@ struct ConsoleItem {
 
 impl std::fmt::Display for LogJSON {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let selenum_value = &self.clone().0;
+        #[allow(clippy::clone_double_ref)]
+        let selenium_value = &self.clone().0;
 
-        match from_value(selenum_value.to_owned()).unwrap_or(Value::Null) {
+        match from_value(selenium_value.to_owned()).unwrap_or(Value::Null) {
             Value::Array(items) => {
                 let console_items = items
                     .into_iter()
-                    .map(|v| from_value::<ConsoleItem>(v).unwrap_or(ConsoleItem::default()))
+                    .map(|v| from_value::<ConsoleItem>(v).unwrap_or_default())
                     .collect::<Vec<ConsoleItem>>();
 
                 let messages = console_items
@@ -168,7 +169,7 @@ async fn main() -> Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                let splitted: Vec<&str> = line.split(' ').filter(|x| *x != "").collect();
+                let splitted: Vec<&str> = line.split(' ').filter(|x| !x.is_empty()).collect();
 
                 // Do nothing if `splitted` is empty.
                 if let Some(first_word) = splitted.first() {
