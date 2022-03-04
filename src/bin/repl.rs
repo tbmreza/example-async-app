@@ -32,6 +32,7 @@ async fn main() -> Result<()> {
         let mut caps = DesiredCapabilities::chrome();
         caps.add_chrome_arg("--headless")?;
         caps.set_logging(LogType::Browser, LoggingPrefsLogLevel::All)?;
+
         WebDriver::new("http://localhost:4444", &caps).await?
     };
 

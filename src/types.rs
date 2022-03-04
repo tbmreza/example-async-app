@@ -54,6 +54,10 @@ struct ConsoleItem {
     timestamp: u64,
 }
 
+/// Formats serialized json to vector of messages, our field of interest.
+///
+/// Unfortunately, message is pre-formatted to String by the protocol. There is nothing we could do
+/// to retrieve the lost information. Otherwise, displaying a JavaScript object would be possible.
 impl std::fmt::Display for LogJSON {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let selenium_value = &(self.0);
@@ -69,10 +73,7 @@ impl std::fmt::Display for LogJSON {
                     .map(|i| i.message)
                     .collect::<Vec<String>>();
 
-                // TODO bedah Object di dalem message. fields (message, level, source, timestamp)
-                // dan typesnya ditentuin di mana?
-
-                write!(f, "atas. {:?}", messages)
+                write!(f, "{:?}", messages)
             }
             _ => write!(f, "{}", self.0),
         }
