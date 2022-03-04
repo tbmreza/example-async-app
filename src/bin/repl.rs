@@ -4,7 +4,7 @@
 // use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use async_std::sync::{Arc, Mutex};
 use color_eyre::Result;
-use myrepl::browse::*;
+use myrepl::action::*;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use serde::Deserialize;
