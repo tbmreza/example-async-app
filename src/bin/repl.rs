@@ -5,8 +5,10 @@
 // use serde::Deserialize;
 // use serde_json::{from_value, Value};
 use async_std::sync::{Arc, Mutex};
+use clap::StructOpt;
 use color_eyre::Result;
 use myrepl::action::*;
+use myrepl::cli::Args;
 use myrepl::types::{Command, DriverMethod, LogJSON, ToCommand};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
@@ -20,6 +22,8 @@ use tokio::sync::mpsc;
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = Args::parse();
+
     let mut rl = Editor::<()>::new();
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
@@ -34,7 +38,8 @@ async fn main() -> Result<()> {
         caps.add_chrome_arg("--headless")?;
         caps.set_logging(LogType::Browser, LoggingPrefsLogLevel::All)?;
 
-        WebDriver::new("http://localhost:4444", &caps).await?
+        let server_url = format!("http://localhost:{}", args.port);
+        WebDriver::new(&server_url, &caps).await?
     };
 
     let (tx, mut rx) = mpsc::channel(1);
