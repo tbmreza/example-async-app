@@ -24,6 +24,7 @@ async fn main() -> Result<()> {
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
+    let page_source = std::path::Path::new("page.txt");
 
     let urlbar = Arc::new(Mutex::new(String::new()));
     let urlbar_clone = urlbar.clone();
@@ -42,7 +43,7 @@ async fn main() -> Result<()> {
         while let Some(cmd) = rx.recv().await {
             match cmd {
                 DriverMethod::Page => {
-                    if let Err(e) = print_page().await {
+                    if let Err(e) = print_page(page_source).await {
                         eprintln!("{:?}", e);
                     }
                 }
@@ -70,7 +71,7 @@ async fn main() -> Result<()> {
                                     .write(true)
                                     .truncate(true)
                                     .create(true)
-                                    .open("page.txt")
+                                    .open(page_source)
                                     .await
                                     .expect("build file handle failure");
 
