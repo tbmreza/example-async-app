@@ -1,4 +1,6 @@
 // #![allow(unused_imports)]
+// use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
+// use thirtyfour::prelude::*;
 // use tokio;
 // use tokio::fs::File;
 // use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
@@ -12,8 +14,6 @@ use myrepl::cli::Args;
 use myrepl::types::{Command, DriverMethod, LogJSON, ToCommand};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
-use thirtyfour::prelude::*;
 use thirtyfour::LogType;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
@@ -33,15 +33,7 @@ async fn main() -> Result<()> {
     let urlbar = Arc::new(Mutex::new(String::new()));
     let urlbar_clone = urlbar.clone();
 
-    let driver = {
-        let mut caps = DesiredCapabilities::chrome();
-        caps.add_chrome_arg("--headless")?;
-        caps.set_logging(LogType::Browser, LoggingPrefsLogLevel::All)?;
-
-        let server_url = format!("http://localhost:{}", args.port);
-        WebDriver::new(&server_url, &caps).await?
-    };
-
+    let driver = make_driver(args.port).await?;
     let (tx, mut rx) = mpsc::channel(1);
 
     let _ = tokio::spawn(async move {

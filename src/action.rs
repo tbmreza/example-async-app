@@ -1,3 +1,5 @@
+use color_eyre::Result;
+use std::path::Path;
 /// geckodriver/marionette doesn't support get_log
 // use eyre::eyre;
 // use thirtyfour::error::{WebDriverError, WebDriverResult};
@@ -5,18 +7,29 @@
 // use thirtyfour::LogType; // if cargo points to my fork
 // use tokio::fs::OpenOptions;
 // use tokio::time::{sleep, Duration};
-use color_eyre::Result;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+// use std::sync::{Arc, Mutex};
+//
+// pub type Urlbar = Arc<Mutex<String>>;
+use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
+use thirtyfour::prelude::*;
+use thirtyfour::LogType;
 use tokio;
 use tokio::fs::File;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 
-pub type Urlbar = Arc<Mutex<String>>;
-
 // problem: prompt sering ga muncul. executes after CTRL-C:
 // let mut stdout = io::stdout();
 // if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
+
+/// Initializes localhost driver.
+pub async fn make_driver(port: u16) -> Result<WebDriver> {
+    let mut caps = DesiredCapabilities::chrome();
+    caps.add_chrome_arg("--headless")?;
+    caps.set_logging(LogType::Browser, LoggingPrefsLogLevel::All)?;
+
+    let server_url = format!("http://localhost:{}", port);
+    Ok(WebDriver::new(&server_url, &caps).await?)
+}
 
 /// Prints dumped `page_source` to stdout.
 ///
