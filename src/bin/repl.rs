@@ -52,7 +52,16 @@ async fn main() -> Result<()> {
                 },
                 DriverMethod::GetLog(log_type) => match driver.get_log(log_type).await {
                     Ok(v) => {
-                        println!("{:?}", &LogJSON(v).to_string())
+                        // TODO non localhost on getting log:
+                        // "security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'."
+
+                        let urlbar = urlbar.clone();
+                        let url = urlbar.lock().await;
+
+                        println!("{} says:", &url);
+                        for message in LogJSON(v).into_iter() {
+                            println!("{:?}", message);
+                        }
                     }
                     Err(e) => println!("{:?}", e),
                 },

@@ -41,8 +41,6 @@ impl ToCommand for &str {
     }
 }
 
-pub struct LogJSON(pub Value);
-
 #[derive(Deserialize, Default)]
 struct ConsoleItem {
     message: String,
@@ -58,8 +56,16 @@ struct ConsoleItem {
 ///
 /// Unfortunately, message is pre-formatted to String by the protocol. There is nothing we could do
 /// to retrieve the lost information. Otherwise, displaying a JavaScript object would be possible.
-impl std::fmt::Display for LogJSON {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+
+#[derive(Default)]
+pub struct LogJSON(pub Value);
+
+use std::iter::IntoIterator;
+impl IntoIterator for LogJSON {
+    type Item = String;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
         let selenium_value = &(self.0);
 
         match from_value(selenium_value.to_owned()).unwrap_or(Value::Null) {
@@ -73,9 +79,26 @@ impl std::fmt::Display for LogJSON {
                     .map(|i| i.message)
                     .collect::<Vec<String>>();
 
-                write!(f, "{:?}", messages)
+                messages.into_iter()
             }
-            _ => write!(f, "{}", self.0),
+            _ => Vec::new().into_iter(),
         }
+    }
+}
+
+// TODO
+/// First word of ConsoleItem's message is the URL.
+fn behead(message: String) -> String {
+    message
+}
+// "http://tarrasque.dmp.loc/ 75:20 \"aha\""
+// "http://tarrasque.dmp.loc/ 74:20 Object"
+// 71:20 "message"
+// 74:20 "12"
+
+#[test]
+fn test_log_json_iter() {
+    for message in LogJSON::default().into_iter() {
+        println!("{:?}", message);
     }
 }
