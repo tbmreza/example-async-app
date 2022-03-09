@@ -76,7 +76,7 @@ impl IntoIterator for LogJSON {
 
                 let messages = console_items
                     .into_iter()
-                    .map(|i| i.message)
+                    .map(|i| behead(i.message))
                     .collect::<Vec<String>>();
 
                 messages.into_iter()
@@ -86,15 +86,34 @@ impl IntoIterator for LogJSON {
     }
 }
 
-// TODO
-/// First word of ConsoleItem's message is the URL.
+/// First word of ConsoleItem's message is the URL. Also trims double-quotes around the JavaScript value.
 fn behead(message: String) -> String {
-    message
+    let mut words = message
+        .split(' ')
+        .filter(|x| !x.is_empty())
+        .skip(1)
+        .map(|word| word.trim_matches('"'));
+
+    match words.next() {
+        None => String::new(),
+        Some(word) => {
+            let mut message = format!("[{}]", word);
+
+            for word in words {
+                message = format!("{} {}", message, word);
+            }
+            message
+        }
+    }
 }
-// "http://tarrasque.dmp.loc/ 75:20 \"aha\""
-// "http://tarrasque.dmp.loc/ 74:20 Object"
-// 71:20 "message"
-// 74:20 "12"
+
+#[test]
+fn test_behead() {
+    println!(
+        "{:?}",
+        behead("http://tarrasque.dmp.loc/ 75:20 \"aha\"".to_string())
+    );
+}
 
 #[test]
 fn test_log_json_iter() {
