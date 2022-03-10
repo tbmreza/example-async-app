@@ -1,3 +1,4 @@
+// TODO prepend http://
 // #![allow(unused_imports)]
 // use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
 // use thirtyfour::prelude::*;
@@ -26,8 +27,8 @@ async fn main() -> Result<()> {
     if rl.load_history("history.txt").is_err() {
         println!("No previous history.");
     }
-    let page_source = std::path::Path::new("page.txt");
-    // let log_dump = std::path::Path::new("log.txt");
+    let page_txt = std::path::Path::new("page.txt");
+    let log_txt = std::path::Path::new("log.txt");
 
     let urlbar = Arc::new(Mutex::new(String::new()));
     let urlbar_clone = urlbar.clone();
@@ -37,9 +38,11 @@ async fn main() -> Result<()> {
 
     let _ = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
+            use myrepl::action::{dump, from_dump};
+
             match cmd {
                 DriverMethod::Page => {
-                    if let Err(e) = print_page(page_source).await {
+                    if let Err(e) = print_page(page_txt).await {
                         eprintln!("{:?}", e);
                     }
                 }
@@ -53,14 +56,24 @@ async fn main() -> Result<()> {
                     Ok(v) => {
                         // TODO non localhost on getting log:
                         // "security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'."
+                        use serde_json::Value;
 
                         let urlbar = urlbar.clone();
                         let url = urlbar.lock().await;
 
+                        let log_json = match v {
+                            Value::Null => LogJSON(from_dump(log_txt).await.unwrap_or(Value::Null)),
+                            v => {
+                                if dump(v.to_string().as_bytes(), log_txt).await.is_err() {
+                                    eprintln!("log dump failure");
+                                }
+                                LogJSON(v)
+                            }
+                        };
+
                         println!("{} says:", &url);
-                        // let log_json = match v { Value::Null => LogJSON(read_log_dump()), v => { write_log_dump(v); LogJSON(v) } }
-                        // for message in log_json.into_iter() {
-                        for message in LogJSON(v).into_iter() {
+                        // iter consumes v before dump has the chance to write?!
+                        for message in log_json.into_iter() {
                             println!("{:?}", message);
                         }
                     }
@@ -73,9 +86,7 @@ async fn main() -> Result<()> {
                     match driver.get(url.clone()).await {
                         Ok(_) => match driver.page_source().await {
                             Ok(s) => {
-                                use myrepl::action::dump;
-
-                                if dump(s.as_bytes(), page_source).await.is_err() {
+                                if dump(s.as_bytes(), page_txt).await.is_err() {
                                     eprintln!("page_source dump failure");
                                 }
                             }

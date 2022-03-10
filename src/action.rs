@@ -62,6 +62,26 @@ pub async fn print_page(page_source: &Path) -> Result<()> {
 }
 
 /// Dumps bytes to file.
+///
+/// # Examples
+///
+/// ```rust
+/// # use color_eyre::Result;
+/// use myrepl::action::dump;
+/// use serde_json::{json, Value};
+///
+/// #[tokio::main]
+/// async fn main() -> Result<()> {
+///     let j = json!(["an", "array"]);
+///     let test_txt = std::path::Path::new("test.txt");
+///
+///     if dump(j.to_string().as_bytes(), test_txt).await.is_err() {
+///         eprintln!("log dump failure");
+///     }
+///
+///     Ok(())
+/// }
+/// ```
 pub async fn dump(bytes: &[u8], p: &std::path::Path) -> Result<()> {
     use tokio::fs::OpenOptions;
 
@@ -75,4 +95,29 @@ pub async fn dump(bytes: &[u8], p: &std::path::Path) -> Result<()> {
         .expect("build file handle failure");
 
     file.write_all(bytes).await.map_err(eyre::Report::new)
+}
+
+/// Reads file as JSON value.
+pub async fn from_dump(p: &std::path::Path) -> Result<serde_json::Value> {
+    use serde_json::{from_slice, Value};
+    use tokio::fs::OpenOptions;
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        // .write(true)
+        .truncate(true)
+        .create(true)
+        .open(p)
+        .await
+        .expect("build file handle failure");
+
+    let mut buf = Vec::new();
+
+    match file.read_to_end(&mut buf).await {
+        Ok(_) => {
+            let j = from_slice(&buf).expect("serde conversion failure");
+            Ok(j)
+        }
+        Err(_) => Ok(Value::Null),
+    }
 }
