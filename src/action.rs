@@ -5,7 +5,6 @@ use std::path::Path;
 // use thirtyfour::error::{WebDriverError, WebDriverResult};
 // use thirtyfour::prelude::*;
 // use thirtyfour::LogType; // if cargo points to my fork
-// use tokio::fs::OpenOptions;
 // use tokio::time::{sleep, Duration};
 // use std::sync::{Arc, Mutex};
 //
@@ -60,4 +59,20 @@ pub async fn print_page(page_source: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Dumps bytes to file.
+pub async fn dump(bytes: &[u8], p: &std::path::Path) -> Result<()> {
+    use tokio::fs::OpenOptions;
+
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(p)
+        .await
+        .expect("build file handle failure");
+
+    file.write_all(bytes).await.map_err(eyre::Report::new)
 }

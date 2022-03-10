@@ -74,6 +74,7 @@ impl IntoIterator for LogJSON {
                     .into_iter()
                     .map(|v| from_value::<ConsoleItem>(v).unwrap_or_default());
 
+                #[allow(clippy::needless_collect)]
                 let messages = console_items
                     .into_iter()
                     .map(|i| behead(i.message))

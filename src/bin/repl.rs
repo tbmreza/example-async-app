@@ -15,8 +15,6 @@ use myrepl::types::{Command, DriverMethod, LogJSON, ToCommand};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use thirtyfour::LogType;
-use tokio::fs::OpenOptions;
-use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
@@ -29,6 +27,7 @@ async fn main() -> Result<()> {
         println!("No previous history.");
     }
     let page_source = std::path::Path::new("page.txt");
+    // let log_dump = std::path::Path::new("log.txt");
 
     let urlbar = Arc::new(Mutex::new(String::new()));
     let urlbar_clone = urlbar.clone();
@@ -59,6 +58,8 @@ async fn main() -> Result<()> {
                         let url = urlbar.lock().await;
 
                         println!("{} says:", &url);
+                        // let log_json = match v { Value::Null => LogJSON(read_log_dump()), v => { write_log_dump(v); LogJSON(v) } }
+                        // for message in log_json.into_iter() {
                         for message in LogJSON(v).into_iter() {
                             println!("{:?}", message);
                         }
@@ -72,18 +73,11 @@ async fn main() -> Result<()> {
                     match driver.get(url.clone()).await {
                         Ok(_) => match driver.page_source().await {
                             Ok(s) => {
-                                let mut file = OpenOptions::new()
-                                    .read(true)
-                                    .write(true)
-                                    .truncate(true)
-                                    .create(true)
-                                    .open(page_source)
-                                    .await
-                                    .expect("build file handle failure");
+                                use myrepl::action::dump;
 
-                                if let Err(e) = file.write_all(s.as_bytes()).await {
-                                    eprintln!("{:?}", e);
-                                };
+                                if dump(s.as_bytes(), page_source).await.is_err() {
+                                    eprintln!("page_source dump failure");
+                                }
                             }
                             Err(e) => eprintln!("{:?}", e),
                         },
