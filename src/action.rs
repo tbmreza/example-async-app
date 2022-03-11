@@ -1,6 +1,7 @@
 use color_eyre::Result;
 use std::path::Path;
 /// geckodriver/marionette doesn't support get_log
+/// serde_json isn't tokio compatible!
 // use eyre::eyre;
 // use thirtyfour::error::{WebDriverError, WebDriverResult};
 // use thirtyfour::prelude::*;
@@ -95,6 +96,41 @@ pub async fn dump(bytes: &[u8], p: &std::path::Path) -> Result<()> {
         .expect("build file handle failure");
 
     file.write_all(bytes).await.map_err(eyre::Report::new)
+}
+
+pub fn sync_dump(path: &std::path::Path, value: String) -> Result<()> {
+    use eyre::Report;
+    use std::fs::OpenOptions;
+    use std::io::prelude::*;
+
+    let mut txt = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .create(true)
+        .open(path)
+        .expect("build file handle failure");
+
+    txt.write_all(value.as_bytes()).map_err(Report::new)
+}
+
+pub fn sync_from_dump(path: &std::path::Path) -> serde_json::Value {
+    use serde_json::json;
+    use std::fs::OpenOptions;
+    use std::io::prelude::*;
+
+    let mut txt = OpenOptions::new()
+        .read(true)
+        // .truncate(true)
+        .create(true)
+        .open(path)
+        .expect("build file handle failure"); // panics here
+
+    let mut s = String::new();
+
+    match txt.read_to_string(&mut s) {
+        Ok(_) => json!(s),
+        Err(_) => serde_json::Value::Null,
+    }
 }
 
 /// Reads file as JSON value.

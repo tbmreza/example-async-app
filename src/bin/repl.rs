@@ -10,7 +10,7 @@
 use async_std::sync::{Arc, Mutex};
 use clap::StructOpt;
 use color_eyre::Result;
-use myrepl::action::*;
+use myrepl::action::make_driver;
 use myrepl::cli::Args;
 use myrepl::types::{Command, DriverMethod, LogJSON, ToCommand};
 use rustyline::error::ReadlineError;
@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
 
     let _ = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
-            use myrepl::action::{dump, from_dump};
+            use myrepl::action::*;
 
             match cmd {
                 DriverMethod::Page => {
@@ -62,9 +62,11 @@ async fn main() -> Result<()> {
                         let url = urlbar.lock().await;
 
                         let log_json = match v {
-                            Value::Null => LogJSON(from_dump(log_txt).await.unwrap_or(Value::Null)),
+                            Value::Array(logs) if logs.is_empty() => {
+                                LogJSON(sync_from_dump(log_txt))
+                            }
                             v => {
-                                if dump(v.to_string().as_bytes(), log_txt).await.is_err() {
+                                if sync_dump(log_txt, v.to_string()).is_err() {
                                     eprintln!("log dump failure");
                                 }
                                 LogJSON(v)
@@ -72,7 +74,6 @@ async fn main() -> Result<()> {
                         };
 
                         println!("{} says:", &url);
-                        // iter consumes v before dump has the chance to write?!
                         for message in log_json.into_iter() {
                             println!("{:?}", message);
                         }
