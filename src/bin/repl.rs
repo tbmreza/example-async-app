@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
                                 LogJSON(v)
                             }
                         };
-
+                        // TODO if url.is_empty, print "{log_txt} reads:"
                         println!("{} says:", &url);
                         for message in log_json.into_iter() {
                             println!("{:?}", message);

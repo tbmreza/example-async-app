@@ -57,7 +57,7 @@ struct ConsoleItem {
 /// Unfortunately, message is pre-formatted to String by the protocol. There is nothing we could do
 /// to retrieve the lost information. Otherwise, displaying a JavaScript object would be possible.
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct LogJSON(pub Value);
 
 use std::iter::IntoIterator;
@@ -68,22 +68,27 @@ impl IntoIterator for LogJSON {
     fn into_iter(self) -> Self::IntoIter {
         let selenium_value = &(self.0);
 
-        match from_value(selenium_value.to_owned()).unwrap_or(Value::Null) {
-            Value::Array(items) => {
-                let console_items = items
-                    .into_iter()
-                    .map(|v| from_value::<ConsoleItem>(v).unwrap_or_default());
-
-                #[allow(clippy::needless_collect)]
-                let messages = console_items
-                    .into_iter()
-                    .map(|i| behead(i.message))
-                    .collect::<Vec<String>>();
-
-                messages.into_iter()
+        let console_items = match selenium_value.to_owned() {
+            Value::String(txt) => {
+                serde_json::from_str::<Vec<ConsoleItem>>(&txt).unwrap_or_default()
             }
-            _ => Vec::new().into_iter(),
-        }
+            Value::Array(items) => items
+                .into_iter()
+                .map(|v| from_value::<ConsoleItem>(v).unwrap_or_default())
+                .collect::<Vec<ConsoleItem>>(),
+            v => {
+                eprintln!("unimplemented for this JSON form: {}", &v);
+                return Vec::new().into_iter();
+            }
+        };
+
+        #[allow(clippy::needless_collect)]
+        let messages = console_items
+            .into_iter()
+            .map(|i| behead(i.message))
+            .collect::<Vec<String>>();
+
+        messages.into_iter()
     }
 }
 

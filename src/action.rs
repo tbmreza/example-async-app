@@ -114,22 +114,15 @@ pub fn sync_dump(path: &std::path::Path, value: String) -> Result<()> {
 }
 
 pub fn sync_from_dump(path: &std::path::Path) -> serde_json::Value {
-    use serde_json::json;
-    use std::fs::OpenOptions;
+    use serde_json::{json, Value};
     use std::io::prelude::*;
 
-    let mut txt = OpenOptions::new()
-        .read(true)
-        // .truncate(true)
-        .create(true)
-        .open(path)
-        .expect("build file handle failure"); // panics here
-
+    let mut txt = std::fs::File::open(path).expect("path bad");
     let mut s = String::new();
 
     match txt.read_to_string(&mut s) {
         Ok(_) => json!(s),
-        Err(_) => serde_json::Value::Null,
+        Err(_) => Value::Null,
     }
 }
 
