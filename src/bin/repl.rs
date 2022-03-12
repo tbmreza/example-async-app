@@ -1,12 +1,5 @@
 // TODO prepend http://
 // #![allow(unused_imports)]
-// use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
-// use thirtyfour::prelude::*;
-// use tokio;
-// use tokio::fs::File;
-// use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
-// use serde::Deserialize;
-// use serde_json::{from_value, Value};
 use async_std::sync::{Arc, Mutex};
 use clap::StructOpt;
 use color_eyre::Result;
@@ -153,7 +146,7 @@ async fn main() -> Result<()> {
                                                 return;
                                             }
                                         }
-                                        // TODO test if this runs after Goto finishes
+
                                         if tx.send(DriverMethod::Page).await.is_err() {
                                             println!("receiver dropped");
                                         }
@@ -195,7 +188,6 @@ async fn main() -> Result<()> {
                             }
                         }
                         Command::Goto => {
-                            // updates urlbar, writes to page.txt (and console.txt if any), (prints console,) then exits
                             let arg = splitted.get(1).map(|s| s.to_string());
                             match arg {
                                 Some(url) if splitted.len() == 2 => {
@@ -231,8 +223,11 @@ async fn main() -> Result<()> {
             }
         }
     }
-    // manager.await.unwrap();  // dengan atau tanpa ini: kadang promptnya gak ada, tapi functionality ok
+    // manager.await.unwrap();  // why is this not necessary?
 
-    rl.save_history("history.txt").unwrap();
+    if rl.save_history("history.txt").is_err() {
+        // log e
+    };
+
     Ok(())
 }

@@ -1,15 +1,5 @@
 use color_eyre::Result;
 use std::path::Path;
-/// geckodriver/marionette doesn't support get_log
-/// serde_json isn't tokio compatible!
-// use eyre::eyre;
-// use thirtyfour::error::{WebDriverError, WebDriverResult};
-// use thirtyfour::prelude::*;
-// use thirtyfour::LogType; // if cargo points to my fork
-// use tokio::time::{sleep, Duration};
-// use std::sync::{Arc, Mutex};
-//
-// pub type Urlbar = Arc<Mutex<String>>;
 use thirtyfour::common::capabilities::firefox::LoggingPrefsLogLevel;
 use thirtyfour::prelude::*;
 use thirtyfour::LogType;
@@ -17,9 +7,8 @@ use tokio;
 use tokio::fs::File;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 
-// problem: prompt sering ga muncul. executes after CTRL-C:
-// let mut stdout = io::stdout();
-// if let Ok(_) = stdout.write_all(b"dari dlm manager").await {}
+// TODO fix shy prompt (showing after CTRL-P, presumably other inputs that trigger returning to
+// readline).
 
 /// Initializes localhost driver.
 pub async fn make_driver(port: u16) -> Result<WebDriver> {
@@ -133,7 +122,6 @@ pub async fn from_dump(p: &std::path::Path) -> Result<serde_json::Value> {
 
     let mut file = OpenOptions::new()
         .read(true)
-        // .write(true)
         .truncate(true)
         .create(true)
         .open(p)
