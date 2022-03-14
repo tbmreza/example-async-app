@@ -4,7 +4,7 @@ use clap::StructOpt;
 use color_eyre::Result;
 use flexi_logger::{FileSpec, Logger, WriteMode};
 use if_chain::if_chain;
-use log::{info, warn};
+use log::*;
 use myrepl::action::make_driver;
 use myrepl::cli::Args;
 use myrepl::types::{Command, DriverMethod, LogJSON, ToCommand};
@@ -72,8 +72,13 @@ async fn main() -> Result<()> {
                                 LogJSON(v)
                             }
                         };
-                        // TODO if url.is_empty, print "{log_txt} reads:"
-                        println!("{} says:", &url);
+
+                        let heading = if url.is_empty() {
+                            format!("{:?} reads:", log_txt)
+                        } else {
+                            format!("{} says:", &url)
+                        };
+                        println!("{}", &heading);
                         for message in log_json.into_iter() {
                             println!("{:?}", message);
                         }
