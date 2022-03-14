@@ -1,4 +1,3 @@
-// TODO prepend http://
 // #![allow(unused_imports)]
 use async_std::sync::{Arc, Mutex};
 use clap::StructOpt;
@@ -10,6 +9,23 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use thirtyfour::LogType;
 use tokio::sync::mpsc;
+
+fn prepend_http(url: String) -> String {
+    use regex::Regex;
+
+    let re = Regex::new(r"^https?:///i").expect("invalid expression");
+    if !re.is_match(&url) {
+        return format!("http://{}", &url);
+    }
+    url
+}
+
+#[test]
+fn test_prepend_http() {
+    let input = String::from("localhost");
+    let expect = String::from("http://localhost");
+    assert_eq!(prepend_http(input), expect);
+}
 
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
 #[tokio::main]
@@ -77,7 +93,7 @@ async fn main() -> Result<()> {
                     let urlbar = urlbar.clone();
                     let url = urlbar.lock().await;
 
-                    match driver.get(url.clone()).await {
+                    match driver.get(prepend_http(url.clone())).await {
                         Ok(_) => match driver.page_source().await {
                             Ok(s) => {
                                 if dump(s.as_bytes(), page_txt).await.is_err() {
