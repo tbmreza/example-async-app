@@ -1009,6 +1009,7 @@ dependencies = [
  "eyre",
  "flexi_logger",
  "if_chain",
+ "lazy_static",
  "log",
  "regex",
  "rustyline",

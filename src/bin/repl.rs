@@ -4,6 +4,7 @@ use clap::StructOpt;
 use color_eyre::Result;
 use flexi_logger::{FileSpec, Logger, WriteMode};
 use if_chain::if_chain;
+use lazy_static::lazy_static;
 use log::*;
 use myrepl::action::make_driver;
 use myrepl::cli::Args;
@@ -90,26 +91,22 @@ async fn main() -> Result<()> {
                     let url = urlbar.lock().await;
 
                     let checked_url = {
-                        let url_clone = url.clone();
+                        use regex::Regex;
 
-                        match regex::Regex::new(r"^https?:///i") {
-                            Err(e) => {
-                                warn!("internal: invalid regex");
-                                Err(e)
-                            }
-                            Ok(pat) => {
-                                if pat.is_match(&url_clone) {
-                                    Ok(url_clone)
-                                } else {
-                                    Ok(format!("http://{}", &url_clone))
-                                }
-                            }
+                        lazy_static! {
+                            static ref RE: Regex = Regex::new(r"^https?:///i").expect("invalid expression");
                         }
+
+                        let mut checked = url.clone();
+                        if !RE.is_match(&checked) {
+                            checked = format!("http://{}", &checked);
+                        }
+                        checked
                     };
 
+                    // is better than nested match?
                     if_chain! {
-                        if let Ok(url) = checked_url;
-                        if let Ok(_) = driver.get(url).await;
+                        if let Ok(_) = driver.get(checked_url).await;
                         if let Ok(source) = driver.page_source().await;
                         then {
                             if let Err(e) = dump(source.as_bytes(), page_txt).await {
@@ -117,22 +114,6 @@ async fn main() -> Result<()> {
                             }
                         }
                     }
-
-                    // NOTE I'm undecided if this nested match version is actually better
-                    // match checked_url {
-                    //     Ok(url) => match driver.get(url).await {
-                    //         Ok(_) => match driver.page_source().await {
-                    //             Ok(s) => {
-                    //                 if dump(s.as_bytes(), page_txt).await.is_err() {
-                    //                     warn!("page_source dump failure");
-                    //                 }
-                    //             }
-                    //             Err(e) => warn!("{:?}", e),
-                    //         },
-                    //         Err(e) => warn!("{:?}", e),
-                    //     }
-                    //     Err(e) => warn!("{:?}", e),
-                    // }
                 }
             }
         }
@@ -185,7 +166,6 @@ async fn main() -> Result<()> {
 
                                     tokio::spawn(async move {
                                         if subcommand == "refresh" {
-                                            // TODO make this fallible: return to user prompt
                                             if tx.send(DriverMethod::Goto).await.is_err() {
                                                 println!("receiver dropped");
                                                 return;
