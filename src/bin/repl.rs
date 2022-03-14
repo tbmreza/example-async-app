@@ -2,6 +2,9 @@
 use async_std::sync::{Arc, Mutex};
 use clap::StructOpt;
 use color_eyre::Result;
+use flexi_logger::{FileSpec, Logger, WriteMode};
+use if_chain::if_chain;
+use log::{info, warn};
 use myrepl::action::make_driver;
 use myrepl::cli::Args;
 use myrepl::types::{Command, DriverMethod, LogJSON, ToCommand};
@@ -13,6 +16,11 @@ use tokio::sync::mpsc;
 /// This program consists of two big loops: a REPL and an async channel that operates WebDriver.
 #[tokio::main]
 async fn main() -> Result<()> {
+    let _logger = Logger::try_with_str("info, my::critical::module=trace")?
+        .log_to_file(FileSpec::default())
+        .write_mode(WriteMode::BufferAndFlush)
+        .start()?;
+
     let args = Args::parse();
 
     let mut rl = Editor::<()>::new();
@@ -35,7 +43,7 @@ async fn main() -> Result<()> {
             match cmd {
                 DriverMethod::Page => {
                     if let Err(e) = print_page(page_txt).await {
-                        eprintln!("{:?}", e);
+                        warn!("{:?}", e);
                     }
                 }
                 DriverMethod::LogTypes => match driver.log_types().await {
@@ -59,7 +67,7 @@ async fn main() -> Result<()> {
                             }
                             v => {
                                 if sync_dump(log_txt, v.to_string()).is_err() {
-                                    eprintln!("log dump failure");
+                                    warn!("log dump failure");
                                 }
                                 LogJSON(v)
                             }
@@ -77,17 +85,15 @@ async fn main() -> Result<()> {
                     let url = urlbar.lock().await;
 
                     let checked_url = {
-                        use regex::Regex;
-
                         let url_clone = url.clone();
 
-                        match Regex::new(r"^https?:///i") {
+                        match regex::Regex::new(r"^https?:///i") {
                             Err(e) => {
-                                eprintln!("internal: invalid regex");
+                                warn!("internal: invalid regex");
                                 Err(e)
                             }
-                            Ok(starts_with_http) => {
-                                if starts_with_http.is_match(&url_clone) {
+                            Ok(pat) => {
+                                if pat.is_match(&url_clone) {
                                     Ok(url_clone)
                                 } else {
                                     Ok(format!("http://{}", &url_clone))
@@ -96,15 +102,13 @@ async fn main() -> Result<()> {
                         }
                     };
 
-                    use if_chain::if_chain;
-
                     if_chain! {
                         if let Ok(url) = checked_url;
                         if let Ok(_) = driver.get(url).await;
                         if let Ok(source) = driver.page_source().await;
                         then {
                             if let Err(e) = dump(source.as_bytes(), page_txt).await {
-                                eprintln!("{:?}", e);
+                                warn!("{:?}", e);
                             }
                         }
                     }
@@ -115,14 +119,14 @@ async fn main() -> Result<()> {
                     //         Ok(_) => match driver.page_source().await {
                     //             Ok(s) => {
                     //                 if dump(s.as_bytes(), page_txt).await.is_err() {
-                    //                     eprintln!("page_source dump failure");
+                    //                     warn!("page_source dump failure");
                     //                 }
                     //             }
-                    //             Err(e) => eprintln!("{:?}", e),
+                    //             Err(e) => warn!("{:?}", e),
                     //         },
-                    //         Err(e) => eprintln!("{:?}", e),
+                    //         Err(e) => warn!("{:?}", e),
                     //     }
-                    //     Err(e) => eprintln!("{:?}", e),
+                    //     Err(e) => warn!("{:?}", e),
                     // }
                 }
             }
@@ -166,7 +170,7 @@ async fn main() -> Result<()> {
                                 let urlbar = urlbar_clone.clone();
                                 *urlbar.lock().await = arg.to_string();
                             }
-                            _ => eprintln!("Usage: `urlbar [URL]`"),
+                            _ => println!("Usage: `urlbar [URL]`"),
                         },
                         Command::Page => {
                             let subcommand = splitted.get(1).unwrap_or(&"").to_string();
@@ -188,7 +192,7 @@ async fn main() -> Result<()> {
                                         }
                                     });
                                 }
-                                _ => eprintln!("Usage: `page [refresh]`"),
+                                _ => println!("Usage: `page [refresh]`"),
                             }
                         }
                         Command::ConsoleLog => {
@@ -261,8 +265,8 @@ async fn main() -> Result<()> {
     }
     // manager.await.unwrap();  // why is this not necessary?
 
-    if rl.save_history("history.txt").is_err() {
-        // log e
+    if let Err(e) = rl.save_history("history.txt") {
+        warn!("{:?}", e);
     };
 
     Ok(())
