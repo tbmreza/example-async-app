@@ -79,29 +79,51 @@ async fn main() -> Result<()> {
                     let checked_url = {
                         use regex::Regex;
 
-                        // TODO return to user prompt instead of panicking (which causes receiver
-                        // to drop)
-                        let starts_with_http = Regex::new(r"^https?:///i").expect("invalid expression");
                         let url_clone = url.clone();
 
-                        if starts_with_http.is_match(&url_clone) {
-                            url_clone
-                        } else {
-                            format!("http://{}", &url_clone)
+                        match Regex::new(r"^https?:///i") {
+                            Err(e) => {
+                                eprintln!("internal: invalid regex");
+                                Err(e)
+                            }
+                            Ok(starts_with_http) => {
+                                if starts_with_http.is_match(&url_clone) {
+                                    Ok(url_clone)
+                                } else {
+                                    Ok(format!("http://{}", &url_clone))
+                                }
+                            }
                         }
                     };
 
-                    match driver.get(checked_url).await {
-                        Ok(_) => match driver.page_source().await {
-                            Ok(s) => {
-                                if dump(s.as_bytes(), page_txt).await.is_err() {
-                                    eprintln!("page_source dump failure");
-                                }
+                    use if_chain::if_chain;
+
+                    if_chain! {
+                        if let Ok(url) = checked_url;
+                        if let Ok(_) = driver.get(url).await;
+                        if let Ok(source) = driver.page_source().await;
+                        then {
+                            if let Err(e) = dump(source.as_bytes(), page_txt).await {
+                                eprintln!("{:?}", e);
                             }
-                            Err(e) => eprintln!("{:?}", e),
-                        },
-                        Err(e) => eprintln!("{:?}", e),
+                        }
                     }
+
+                    // NOTE I'm undecided if this nested match version is actually better
+                    // match checked_url {
+                    //     Ok(url) => match driver.get(url).await {
+                    //         Ok(_) => match driver.page_source().await {
+                    //             Ok(s) => {
+                    //                 if dump(s.as_bytes(), page_txt).await.is_err() {
+                    //                     eprintln!("page_source dump failure");
+                    //                 }
+                    //             }
+                    //             Err(e) => eprintln!("{:?}", e),
+                    //         },
+                    //         Err(e) => eprintln!("{:?}", e),
+                    //     }
+                    //     Err(e) => eprintln!("{:?}", e),
+                    // }
                 }
             }
         }
