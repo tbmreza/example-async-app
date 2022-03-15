@@ -1,10 +1,13 @@
+//! Skipping the repl interface.
 // #![allow(unused_imports)]
 use myrepl::action::*;
 use thirtyfour::LogType;
 
-/// Skipping the repl interface.
+/// # Invariants
+///
+/// - chromedriver is running
 #[tokio::test]
-async fn try_getting_unavailable_log() {
+async fn get_unavailable_log() {
     let port = 4444_u16;
     let driver = make_driver(port)
         .await
@@ -28,5 +31,29 @@ async fn try_getting_unavailable_log() {
 // fn receiver_dropped() {
 // fn page_refresh_subcommand() {
 //     assert DriverMethod::Page runs after Goto finishes
-// fn geckodriver_get_log() {
-//     assert geckodriver/marionette doesn't support get_log
+
+/// # Invariants
+///
+/// - geckodriver is running
+#[tokio::test]
+async fn geckodriver_get_log() {
+    let port = 4445_u16;
+    let driver = make_driver_gecko(port)
+        .await
+        .expect("geckodriver not running on this port");
+
+    // see if geckodriver/marionette supports get_log
+    match driver.get_log(LogType::Browser).await {
+        Ok(v) => println!("succeed despite all odds: {:?}", v),
+        Err(e) => {
+            driver.quit().await.unwrap();
+            let tip = concat!(
+                r#"get_log failed. Either wait until marionette does support it, or start looking"#,
+                r#" [here](github.com/mozilla/geckodriver/issues/284#issuecomment-477677764) "#,
+                r#"and code geckodriver-specific implementation."#
+            );
+            panic!("{}", format!("{}\n{}", e, tip));
+        }
+    };
+    driver.quit().await.unwrap();
+}
