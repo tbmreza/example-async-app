@@ -1,6 +1,7 @@
 //! Skipping the repl interface.
 // #![allow(unused_imports)]
 use myrepl::action::*;
+use std::env;
 use thirtyfour::LogType;
 
 /// # Invariants
@@ -8,8 +9,12 @@ use thirtyfour::LogType;
 /// - chromedriver is running
 #[tokio::test]
 async fn get_unavailable_log() {
-    let port = 4444_u16;
-    let driver = make_driver(port)
+    let chromedriver_port = env::var("CHROMEDRIVER_PORT")
+        .unwrap_or(String::new())
+        .parse::<u16>()
+        .unwrap_or(4444);
+
+    let driver = make_driver(chromedriver_port)
         .await
         .expect("chromedriver not running on this port");
 
@@ -35,6 +40,7 @@ async fn get_unavailable_log() {
 /// # Invariants
 ///
 /// - geckodriver is running
+#[ignore]
 #[tokio::test]
 async fn geckodriver_get_log() {
     let port = 4445_u16;

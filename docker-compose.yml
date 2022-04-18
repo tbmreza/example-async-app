@@ -1,0 +1,5 @@
+services:
+  chromedriver:
+    image: blueimp/chromedriver
+    ports:
+      - "${CHROMEDRIVER_PORT}:${CHROMEDRIVER_PORT}"

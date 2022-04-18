@@ -1,6 +1,10 @@
 alias sc := spin-chrome
 alias sg := spin-gecko
 
+# up docker containers for testing
+docker:
+	docker-compose --env-file .env up -d
+
 # run repl
 run:
 	cargo +nightly r --bin repl
