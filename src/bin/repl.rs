@@ -94,7 +94,8 @@ async fn main() -> Result<()> {
                         use regex::Regex;
 
                         lazy_static! {
-                            static ref RE: Regex = Regex::new(r"^https?:///i").expect("invalid expression");
+                            static ref RE: Regex =
+                                Regex::new(r"^https?:///i").expect("invalid expression");
                         }
 
                         let mut checked = url.clone();
@@ -165,11 +166,11 @@ async fn main() -> Result<()> {
                                     let tx = tx.clone();
 
                                     tokio::spawn(async move {
-                                        if subcommand == "refresh" {
-                                            if tx.send(DriverMethod::Goto).await.is_err() {
-                                                println!("receiver dropped");
-                                                return;
-                                            }
+                                        if subcommand == "refresh"
+                                            && tx.send(DriverMethod::Goto).await.is_err()
+                                        {
+                                            println!("receiver dropped");
+                                            return;
                                         }
 
                                         if tx.send(DriverMethod::Page).await.is_err() {
