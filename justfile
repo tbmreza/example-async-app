@@ -1,3 +1,5 @@
+set dotenv-load := true
+
 alias sc := spin-chrome
 alias sg := spin-gecko
 

@@ -6,7 +6,7 @@ use thirtyfour::LogType;
 
 /// # Invariants
 ///
-/// - chromedriver is running
+/// - chromedriver is running on specified port
 #[tokio::test]
 async fn get_unavailable_log() {
     let chromedriver_port = env::var("CHROMEDRIVER_PORT")
@@ -32,6 +32,18 @@ async fn get_unavailable_log() {
         Err(_) => println!("get_log errs, as it should"),
     };
 }
+#[tokio::test]
+async fn make_geckodriver() {
+    let geckodriver_port = env::var("GECKODRIVER_PORT")
+        .unwrap_or(String::new())
+        .parse::<u16>()
+        .unwrap_or(4445);
+
+    match make_driver_gecko(geckodriver_port).await {
+        Ok(_) => {}
+        Err(e) => panic!("{:?}", e),
+    }
+}
 // fn file_expect_statements() {
 // fn receiver_dropped() {
 // fn page_refresh_subcommand() {
@@ -39,7 +51,7 @@ async fn get_unavailable_log() {
 
 /// # Invariants
 ///
-/// - geckodriver is running
+/// - geckodriver is running on specified port
 #[ignore]
 #[tokio::test]
 async fn geckodriver_get_log() {
