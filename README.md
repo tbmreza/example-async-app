@@ -30,6 +30,35 @@ However, marionette doesn't support non-W3C method `get_log`. Capturing browser 
 
 <br>
 
+## Testing
+
+The test suite depends on chromedriver already running.
+
+```sh
+# cat test.sh
+if [ $(pgrep -f chromedriver) ]
+then
+	cargo test
+else
+	chromedriver --port=4444 & cargo test
+fi
+```
+
+`cargo test` intentionally doesn't stop chromedriver process on completion (because restarting the program takes considerable seconds).
+Manually kill it using `pkill -f chromedriver`, for example.
+
+### Common Errors
+
+#### "This version of ChromeDriver only supports Chrome version xx"
+
+If chrome updates automatically but chromedriver doesn't, this error will show up quite often.
+Either replace chromedriver binary manually from https://chromedriver.chromium.org/downloads,
+or invoke your package manager's upgrade command on chromedriver.
+```sh
+nix-env -iA nixpkgs.chromedriver 
+```
+<br>
+
 #### License
 
 <sup>

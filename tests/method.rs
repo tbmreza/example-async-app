@@ -32,6 +32,7 @@ async fn get_unavailable_log() {
         Err(_) => println!("get_log errs, as it should"),
     };
 }
+#[ignore]
 #[tokio::test]
 async fn make_geckodriver() {
     let geckodriver_port = env::var("GECKODRIVER_PORT")
