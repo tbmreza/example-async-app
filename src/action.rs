@@ -20,17 +20,6 @@ pub async fn make_driver(port: u16) -> Result<WebDriver> {
     Ok(WebDriver::new(&server_url, &caps).await?)
 }
 
-/// TODO generalize with chromedriver
-pub async fn make_driver_gecko(port: u16) -> Result<WebDriver> {
-    let mut caps = DesiredCapabilities::firefox();
-    caps.add_firefox_arg("--headless")?;
-    // TODO implement in upstream
-    // caps.set_logging(LogType::Browser, LoggingPrefsLogLevel::All)?;
-
-    let server_url = format!("http://localhost:{}", port);
-    Ok(WebDriver::new(&server_url, &caps).await?)
-}
-
 /// Prints dumped `page_source` to stdout.
 ///
 /// # Examples

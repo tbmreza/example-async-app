@@ -1,9 +1,0 @@
-services:
-  chromedriver:
-    image: blueimp/chromedriver
-    ports:
-      - "${CHROMEDRIVER_PORT}:${CHROMEDRIVER_PORT}"
-  geckodriver:
-    image: instrumentisto/geckodriver
-    ports:
-      - "${GECKODRIVER_PORT}:${GECKODRIVER_PORT}"
